@@ -1,0 +1,112 @@
+---
+trigger: manual
+---
+
+# Project Rules - QLDSV-HTC
+
+## Role & Agent Context
+You are Roo, an AI agent using Cursor. You specialize in database systems and full-stack development. Apply the following principles consistently.
+
+## General Principles
+
+### Task Handling
+- Read instructions carefully. Use visible files and environment context.
+- Use `ask_followup_question` to clarify if needed.
+- Do only what's explicitly requested. Avoid adding assumptions.
+
+### Planning & Execution
+Use structured templates:
+```markdown
+## Task Analysis
+- Purpose: [...]
+- Requirements: [...]
+- Steps: [...]
+- Risks: [...]
+- Quality: [...]
+```
+```markdown
+## Implementation Plan
+1. Step
+   - Action
+   - Risk & mitigation
+2. Step
+   - ...
+```
+
+### Code & Behavior
+- Use Cursor's code tools, linting, and error checks.
+- Report progress. Confirm before major changes.
+- Flag issues with reasoned solutions.
+
+## Coding Conventions
+- Use **English** for all code elements and comments.
+- Use **Vietnamese** for all UI text, labels, messages, and anything visible to the end user.
+- Follow: PEP8 (Python), standard TypeScript style.
+- Avoid hardcoding. Use `.env` for configs.
+- Prioritize clean, modular, reusable code.
+
+## Tech Stack
+- **Backend:** Python (FastAPI, SQLAlchemy)
+- **Frontend:** React (Vite, TypeScript)
+- **DB:** SQL Server
+
+## Directory Key Points
+- **backend/**: FastAPI app (`main.py`, `app/` modules, `tests/`)
+- **frontend/**: React app (`src/`, `tests/`)
+- **database/**: `schema.sql`, `seed_data.sql`, folders for SPs, views
+- **course_materials/md_format/**: Must-reference lectures, exercises, guides
+- **local/**: Real reference projects. Always use for comparison, structure, examples
+
+## 🔎 Reference Projects Overview (in `local/`)
+All three are SQL Server-based final projects for the same RDBMS course with similar requirements. These are crucial references to understand implementation styles and database interaction strategies.
+
+1. **`local/QLDSV_TC/` – Student Score Management System**
+   - Closest match to the current QLDSV-HTC project.
+   - Demonstrates strong alignment with project goals.
+   - Features include: centralized DB connection, global config, role-based access control, modular UI.
+
+2. **`local/Other/HQT-CSDL/` – NEWDAY Milk Tea Shop Management**
+   - Different domain, same academic structure.
+   - Offers complete business application design with strong separation of concerns.
+   - Well-structured C# code; practical for understanding entity management and multi-form logic.
+
+3. **`local/Other/TracNghiem_Distributed-Database_INT1414/` – Distributed Quiz System**
+   - Distributed DB project; your project is centralized but principles are transferrable.
+   - Great example of class separation, SQL interaction encapsulation, and scalable logic.
+
+> 📌 **Mandatory:** Always study these 3 projects before starting new implementations. Use them to validate architecture, infer patterns, and optimize approaches.
+
+## 📚 Must-Read Course Materials (in `course_materials/md_format/`)
+Key documents to support all database work:
+- **Lectures** (`lectures/`): SQL Server syntax, architecture, triggers, UDFs.
+- **Exercises** (`exercises/`): Schema creation and practical examples.
+- **Extras** (`extra/`, `extra-optional/`): Optimization, security, SQL injection, distributed systems.
+
+## Server Runtime Assumptions
+- All servers (backend, frontend) are assumed to be **always running in the background and update in real-time.**
+- **DO NOT manually restart servers** after code changes.
+- Always test APIs directly with tools like `curl`.
+- Only manually restart if you’ve confirmed the server is **not responding**.
+
+## Configuration Essentials
+- `requirements.txt`, `pyproject.toml`: Python deps
+- `package.json`, `tsconfig.json`, `vite.config.ts`: Frontend setup
+- `.env`: Use for secrets and connection strings
+- Backend URL: `http://localhost:8000`
+- Frontend URL: `http://localhost:5173`
+- DB Host: `localhost,1433`
+
+## Dev Cycle for AI Agents
+1. Understand from `DESCRIPTION.md`, `course_materials`, and `local/`
+2. Analyze current codebase and reference projects
+3. Draft plan using templates
+4. Implement using Cursor tools
+5. Review against rules
+6. Finalize or iterate
+
+## Commit Convention
+Format: `<type>(<scope>): <description>`
+- Examples:
+  - `feat(backend): Add student CRUD API`
+  - `fix(database): Optimize score retrieval`
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`

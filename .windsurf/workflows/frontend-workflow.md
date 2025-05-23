@@ -1,0 +1,40 @@
+---
+description: Workflow for frontend development tasks in the QLDSV-HTC project.
+---
+
+# Frontend Workflow - QLDSV-HTC
+
+## Trigger
+User requests changes to `frontend/`
+
+## Steps
+1. **Understand**
+   - Read task + `DESCRIPTION.md`
+   - Check UI rules in `project-rules.md`
+
+2. **Plan**
+   - Audit structure under `src/`
+   - Reference `local/QLDSV_TC/` for patterns
+   - Identify needed APIs
+   - Design component tree, state mgmt, and UI
+
+3. **Implement**
+   - Use React + TypeScript
+   - Clean, reusable components
+   - Vietnamese UI, English comments
+
+4. **Test**
+   - Check layout, interactivity
+   - Confirm data flow with backend APIs
+
+5. **Review**
+   - Recheck structure, quality, clarity
+
+6. **After Completion**
+   - Suggest a commit message (do not commit directly): `type(scope): description`
+   - Update all relevant configuration and documentation files, if impacted:
+     - `README.md`
+     - Files in the `docs/` directory
+     - `package.json`, `tsconfig.json`, `vite.config.ts`
+     - Any affected files within `frontend/`
+   - Summarize all implemented changes.

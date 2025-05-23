@@ -172,3 +172,13 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# MacOS
+.DS_Store
+Thumbs.db
+
+# Local
+*local/
+
+# VSCode
+.vscode/

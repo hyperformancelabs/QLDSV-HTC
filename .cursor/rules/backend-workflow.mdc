@@ -1,0 +1,42 @@
+---
+description: Workflow for backend development tasks in the QLDSV-HTC project.
+globs: 
+alwaysApply: false
+---
+
+# Backend Workflow - QLDSV-HTC
+
+## Trigger
+User requests changes to `backend/`
+
+## Steps
+1. **Understand**
+   - Read task + `DESCRIPTION.md`
+   - Use `course_materials` for logic & query optimization
+   - Study `local/` projects to align with best practices
+
+2. **Plan**
+   - Analyze `backend/app/` structure
+   - Review `local/QLDSV_TC/` for DB/API patterns
+   - Note API needs, models, DB changes
+
+3. **Implement**
+   - Use FastAPI + SQLAlchemy
+   - PEP8, reusable logic, `.env` configs
+   - Use raw SQL when needed for SQL Server optimization
+
+4. **Test**
+   - Use `curl` or test tools to check API
+   - Validate DB integrity
+   - **Servers run in background — no need to restart manually unless non-responsive**
+
+5. **Review**
+   - Code must meet style, be commented (short EN), optimized
+
+6. **After Completion**
+   - Suggest a commit message in the format `type(scope): description` (do not commit directly), e.g., `fix(api): Correct auth flow bug`
+   - Update all related files as needed:
+     - `README.md`, `docs/`
+     - `requirements.txt`, `pyproject.toml`
+     - Backend config files such as `.env`, `main.py`, `vite.config.ts`
+   - Summarize all implemented changes.
