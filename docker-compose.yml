@@ -1,0 +1,44 @@
+services:
+  database:
+    extends:
+      file: ./database/docker-compose.yml
+      service: database
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT}
+    networks:
+      - qldsv-network
+
+  backend:
+    extends:
+      file: ./backend/docker-compose.yml
+      service: backend
+    depends_on:
+      - database
+    environment:
+      - DATABASE_URL=mssql+pyodbc://${MSSQL_APP_USER}:${MSSQL_APP_PASSWORD}@database:1434/${DB_NAME}?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
+    networks:
+      - qldsv-network
+
+  frontend:
+    extends:
+      file: ./frontend/docker-compose.yml
+      service: frontend
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_BASE_URL=http://backend:8000/api/v1
+    networks:
+      - qldsv-network
+
+networks:
+  qldsv-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+volumes:
+  sqlserver_data:
+  sqlserver_logs:
+  app_logs:
+  backup_data:

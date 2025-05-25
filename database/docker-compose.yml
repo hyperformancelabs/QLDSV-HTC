@@ -1,0 +1,73 @@
+services:
+  database:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - MSSQL_PID=${MSSQL_PID:-Developer}
+    container_name: ${CONTAINER_NAME:-qldsv-sqlserver}
+    hostname: sqlserver
+    platform: ${PLATFORM:-linux/amd64}
+    restart: unless-stopped
+    
+    environment:
+      # SQL Server Configuration
+      ACCEPT_EULA: Y
+      SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_PID: ${MSSQL_PID:-Developer}
+      MSSQL_LCID: ${MSSQL_LCID:-1033}
+      MSSQL_COLLATION: ${MSSQL_COLLATION:-SQL_Latin1_General_CP1_CI_AS}
+      
+      # Custom Environment Variables
+      QLDSV_DB_NAME: ${DB_NAME}
+      QLDSV_APP_USER: ${MSSQL_APP_USER}
+      QLDSV_APP_PASSWORD: ${MSSQL_APP_PASSWORD}
+      QLDSV_PGV_USER: ${MSSQL_PGV_USER}
+      QLDSV_PGV_PASSWORD: ${MSSQL_PGV_PASSWORD}
+      QLDSV_KHOA_USER: ${MSSQL_KHOA_USER}
+      QLDSV_KHOA_PASSWORD: ${MSSQL_KHOA_PASSWORD}
+      QLDSV_SV_USER: ${MSSQL_SV_USER}
+      QLDSV_SV_PASSWORD: ${MSSQL_SV_PASSWORD}
+    
+    ports:
+      - "${DB_PORT:-1434}:1433"
+    
+    volumes:
+      # Persistent data
+      - sqlserver_data:/var/opt/mssql
+      - sqlserver_logs:/var/opt/mssql/log
+      
+      # Backup storage
+      - ./backups:/var/backups
+      
+      # Health scripts
+      - ./health:/var/health
+    
+    networks:
+      - qldsv-network
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "/var/health/healthcheck.sh"]
+      interval: ${HEALTH_CHECK_INTERVAL:-10s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-5s}
+      retries: ${HEALTH_CHECK_RETRIES:-5}
+      start_period: 30s
+
+volumes:
+  sqlserver_data:
+    driver: local
+  sqlserver_logs:
+    driver: local
+
+networks:
+  qldsv-network:
+    external: true
