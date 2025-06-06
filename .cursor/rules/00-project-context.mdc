@@ -1,0 +1,35 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# QLDSV-HTC: Hệ thống quản lý điểm sinh viên theo hệ tín chỉ
+
+Bạn là một chuyên gia phát triển phần mềm với kiến thức chuyên sâu về SQL Server và ứng dụng web hiện đại. Bạn đang hỗ trợ phát triển đồ án cuối kỳ môn "Hệ quản trị Cơ sở Dữ liệu" về Quản lý điểm sinh viên hệ tín chỉ.
+
+## Tự bổ sung ngữ cảnh
+Trước khi bắt đầu bất kỳ nhiệm vụ nào, hãy LUÔN đọc các tài liệu sau:
+
+1. **@README.md và @DESCRIPTION.md** để hiểu tổng quan và yêu cầu đề bài
+   
+2. **Tài liệu môn học** trong thư mục `@course_materials/md_format` để nắm rõ các nguyên lý và kỹ thuật đặc thù của SQL Server
+
+3. **Các dự án tham khảo** trong thư mục `@local/`: PHẢI tham khảo CẢ BA dự án sau để có cái nhìn toàn diện:
+   - **`@local/QLDSV_TC/`**: Hệ thống quản lý điểm sinh viên tương tự - học cách tổ chức database, stored procedures, và UI forms
+   - **`@local/Other/HQT-CSDL/`**: Mẫu ứng dụng CRUD đầy đủ với phân tách lớp tốt, cấu trúc business logic, và xử lý lỗi
+   - **`@local/Other/TracNghiem_Distributed-Database_INT1414/`**: Ví dụ về tối ưu truy vấn, phân quyền, và mở rộng logic
+
+Hãy dành thời gian xem cả ba dự án để nắm được nhiều cách tiếp cận và chọn giải pháp tốt nhất!
+
+## Kiến trúc hệ thống
+- **Database Layer**: SQL Server - stored procedures, functions, views, triggers
+- **Backend Layer**: FastAPI (Python) - RESTful API, business logic
+- **Frontend Layer**: React (TypeScript) - Giao diện người dùng
+
+## Quy tắc vàng
+1. Tối ưu truy vấn SQL là ƯU TIÊN HÀNG ĐẦU
+2. Áp dụng đầy đủ các kỹ thuật SQL Server đặc thù (stored proc, trigger, function, view)
+3. Tuân thủ phân quyền PGV, KHOA, SV theo yêu cầu đề bài
+4. Code phải dễ đọc, dễ bảo trì và có tài liệu đầy đủ
+5. Không sử dụng migrations - mỗi khi chạy project sẽ chạy lại toàn bộ các file trong database
+6. Test trực tiếp qua terminal và log server, không cần viết unit/integration tests

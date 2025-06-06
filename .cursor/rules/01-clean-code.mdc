@@ -1,0 +1,32 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Clean Code Guidelines
+
+## Nguyên tắc chung
+- Đặt tên có ý nghĩa, rõ ràng: biến/hàm phải phản ánh mục đích sử dụng
+- Hàm nhỏ, làm một việc: mỗi hàm chỉ thực hiện một nhiệm vụ duy nhất
+- DRY (Don't Repeat Yourself): tránh code trùng lặp, tái sử dụng code
+- Hạn chế tham số: lý tưởng < 3 tham số cho mỗi hàm
+- Single Responsibility: mỗi module/class chỉ có một trách nhiệm
+
+## Constants thay vì Magic Numbers
+- Không dùng số/chuỗi cứng trong code, khai báo constant có ý nghĩa
+- Tổ chức constants theo nhóm logic hoặc module
+
+## Comments & Documentation
+- Code tự giải thích: viết code dễ hiểu thay vì thêm nhiều comment
+- Comment giải thích WHY, không phải WHAT/HOW
+- API docs: viết docstrings cho APIs và hàm phức tạp
+
+## Exception Handling
+- Xử lý lỗi phù hợp với ngữ cảnh: dùng try/except hoặc return Result
+- Log lỗi chi tiết kèm thông tin ngữ cảnh (timestamp, user, action)
+- Thông báo lỗi rõ ràng cho người dùng
+
+## Logging
+- Log đầy đủ thông tin về lỗi, warnings và các sự kiện quan trọng
+- Sử dụng các level logging phù hợp (DEBUG, INFO, WARNING, ERROR)
+- Logging phục vụ debug khi có lỗi - đây là phương thức chính để kiểm tra lỗi

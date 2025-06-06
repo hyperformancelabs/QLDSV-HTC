@@ -1,0 +1,319 @@
+---
+description: 
+globs: frontend/src/**/*.tsx, frontend/src/**/*.ts
+alwaysApply: false
+---
+# React Frontend Guidelines
+
+## Kiến trúc phân lớp
+```
+@frontend/src/
+  components/     - UI components (common, specific)
+  pages/          - Page components/containers
+  services/       - API services & data fetching
+  hooks/          - Custom React hooks
+  store/          - Global state management
+  utils/          - Utility functions
+  types/          - TypeScript interfaces/types
+```
+
+## Workflow phát triển
+
+1. **Nghiên cứu yêu cầu**
+   - Đọc @DESCRIPTION.md và tham khảo CẢ BA dự án trong `@local/`
+   - Đặc biệt xem giao diện form của `@local/QLDSV_TC/` và cách tổ chức UI
+   - Tham khảo cách quản lý state và xử lý errors từ `@local/Other/HQT-CSDL/`
+
+2. **Thiết kế component**
+   - Tuân theo Atomic Design: atoms → molecules → organisms → templates → pages
+   - Tách logic khỏi UI với custom hooks
+   - Tận dụng Ant Design components
+
+3. **Quản lý state**
+   - React Query: cho server state (data fetching, caching)
+   - Context API: cho global UI state (auth, theme, etc)
+   - Local state: cho component-specific state
+
+4. **Testing & Debug**
+   - Testing trực tiếp bằng cách sử dụng UI
+   - Theo dõi log từ React DevTools và console
+   - Không cần viết unit/integration tests
+
+## Mẫu code
+
+### Component
+```tsx
+import React from 'react';
+import { Table, Button, message } from 'antd';
+import { useQuery } from '@tanstack/react-query';
+
+import { getSinhVienByLop } from '../../services/sinhVienService';
+import { SinhVienActions } from './SinhVienActions';
+
+interface SinhVienTableProps {
+  maLop: string;
+  onEdit?: (maSV: string) => void;
+}
+
+export const SinhVienTable: React.FC<SinhVienTableProps> = ({ maLop, onEdit }) => {
+  const { data, isLoading, error } = useQuery(
+    ['sinhVien', maLop],
+    () => getSinhVienByLop(maLop),
+    { enabled: !!maLop }
+  );
+
+  if (error) {
+    message.error('Không thể tải dữ liệu sinh viên');
+    console.error('Error loading students:', error);
+  }
+
+  const columns = [
+    { title: 'Mã SV', dataIndex: 'maSV', key: 'maSV' },
+    { title: 'Họ', dataIndex: 'ho', key: 'ho' },
+    { title: 'Tên', dataIndex: 'ten', key: 'ten' },
+    {
+      title: 'Thao tác',
+      key: 'actions',
+      render: (_, record) => (
+        <SinhVienActions
+          maSV={record.maSV}
+          onEdit={() => onEdit?.(record.maSV)}
+        />
+      )
+    }
+  ];
+
+  return <Table loading={isLoading} dataSource={data} columns={columns} rowKey="maSV" />;
+};
+```
+
+### Service
+```ts
+import { AxiosError } from 'axios';
+import api from './api';
+import { SinhVien } from '../types/sinhVien';
+
+export const getSinhVienByLop = async (maLop: string): Promise<SinhVien[]> => {
+  try {
+    const response = await api.get(`/sinhvien/lop/${maLop}`);
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    console.error('API Error:', axiosError.response?.data);
+    throw new Error(axiosError.response?.data?.detail || 'Lỗi khi tải dữ liệu sinh viên');
+  }
+};
+```
+
+### Hook
+```ts
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getSinhVienByLop, createSinhVien } from '../services/sinhVienService';
+
+export const useSinhVienList = (maLop: string) => {
+  return useQuery(['sinhVien', maLop], () => getSinhVienByLop(maLop), {
+    enabled: !!maLop,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    onError: (error) => {
+      console.error('Error in useSinhVienList:', error);
+    }
+  });
+};
+
+export const useCreateSinhVien = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation(createSinhVien, {
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries(['sinhVien', variables.maLop]);
+    }
+  });
+};
+```
+
+## Chạy và debug frontend
+```bash
+# Đi đến thư mục frontend
+cd frontend
+
+# Install dependencies
+npm install
+
+# Chạy development server
+npm run dev
+# Frontend available at http://localhost:5173
+
+# Debug trong browser:
+# 1. Mở DevTools (F12)
+# 2. Console tab: xem logs & errors
+# 3. Network tab: xem API calls
+# 4. React DevTools: xem component tree & props
+```
+
+## State Management
+
+- Sử dụng **React Query** cho server state
+- Sử dụng **Context API** cho global UI state
+- Sử dụng **local state** cho component-specific state
+
+```tsx
+// contexts/AuthContext.tsx
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { User, LoginCredentials } from '../types/auth';
+import authService from '../services/authService';
+
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  error: string | null;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const userData = await authService.getCurrentUser();
+        setUser(userData);
+      } catch (err) {
+        console.error('Auth initialization failed', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    initAuth();
+  }, []);
+
+  const login = async (credentials: LoginCredentials) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const userData = await authService.login(credentials);
+      setUser(userData);
+    } catch (err) {
+      setError(err.message || 'Login failed');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await authService.logout();
+      setUser(null);
+    } catch (err) {
+      console.error('Logout failed', err);
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, error, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+```
+
+## Form Handling
+
+- Sử dụng **Ant Design Form** hoặc **React Hook Form** cho quản lý form
+- Validation đầy đủ phía client
+- Xử lý error messages từ API
+
+## Routing & Navigation
+
+- Sử dụng **React Router** cho routing
+- Phân quyền truy cập trang dựa trên role
+
+```tsx
+// App.tsx with protected routes
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+
+import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
+import SinhVienPage from './pages/SinhVienPage';
+import NotFoundPage from './pages/NotFoundPage';
+
+const queryClient = new QueryClient();
+
+const ProtectedRoute: React.FC<{ 
+  element: React.ReactNode;
+  requiredRoles?: string[] 
+}> = ({ element, requiredRoles = [] }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (requiredRoles.length > 0 && !requiredRoles.includes(user.role)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  return <>{element}</>;
+};
+
+const App: React.FC = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route 
+              path="/dashboard" 
+              element={<ProtectedRoute element={<DashboardPage />} />} 
+            />
+            <Route 
+              path="/sinhvien" 
+              element={<ProtectedRoute 
+                element={<SinhVienPage />}
+                requiredRoles={['PGV', 'KHOA']} 
+              />} 
+            />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
+
+export default App;
+```
+
+## Optimization
+
+- Sử dụng **React.memo** cho components cần tối ưu render
+- Sử dụng **useMemo** và **useCallback** khi cần
+- Code-splitting với React.lazy và Suspense
+
+## UI/UX
+
+- Sử dụng Ant Design làm component library chính
+- Đảm bảo giao diện responsive
+- Cung cấp feedback rõ ràng cho người dùng (loading, errors)
+- Tuân thủ các nguyên tắc accessibility

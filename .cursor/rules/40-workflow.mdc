@@ -1,0 +1,97 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Quy Trình Chung
+
+## Bước chuẩn bị (cho mọi nhiệm vụ)
+1. **Đọc tài liệu**
+   - **@README.md** và **@DESCRIPTION.md**: hiểu yêu cầu dự án
+   - **Tài liệu môn học**: nghiên cứu `@course_materials/md_format`
+   - **Dự án tham khảo**: PHẢI xem CẢ BA project tham khảo trong `@local/`:
+     * `@local/QLDSV_TC/` - Tổ chức database và UI forms
+     * `@local/Other/HQT-CSDL/` - Phân tách lớp và business logic
+     * `@local/Other/TracNghiem_Distributed-Database_INT1414/` - Tối ưu truy vấn
+
+2. **Phân tích phạm vi**
+   - Xác định loại task: database, backend, frontend, hoặc full-stack
+   - Ước tính tác động và dependencies
+
+## Quy trình theo loại nhiệm vụ
+
+### 1. Database Task
+```
+Phân tích schema → Check stored procedures → Viết script → Test
+```
+- Tuân thủ cấu trúc thư mục `@database/`
+- Bắt đầu script bằng DROP IF EXISTS - không dùng migrations
+- Chạy trực tiếp script SQL trên SQL Server và theo dõi output
+- Đảm bảo performance và transaction integrity
+
+### 2. Backend Task
+```
+Pydantic schema → Service logic → API endpoint → Xử lý lỗi → Phân quyền
+```
+- Tham khảo CẢ BA project trong `@local/`
+- Ưu tiên gọi stored procedures
+- Xử lý lỗi đầy đủ với try/catch và logging chi tiết
+- Kiểm tra quyền theo role (PGV, KHOA, SV)
+- Test API với Swagger UI (http://localhost:8000/docs)
+- Chạy với uvicorn và theo dõi log trực tiếp trong terminal
+
+### 3. Frontend Task
+```
+UI design → Component → Service → State mgmt → Debug
+```
+- Sử dụng Ant Design components
+- React Query cho data fetching
+- Tách logic với custom hooks
+- Responsive design
+- Chạy với npm run dev và debug với browser DevTools
+
+### 4. Bug Fix
+```
+Reproduce → Debug → Fix → Test
+```
+- Tái hiện bug với test case cụ thể
+- Xác định root cause bằng cách theo dõi logs trong terminal và browser console
+- Sửa tại nguồn gốc vấn đề
+- Test lại trên UI và theo dõi logs
+
+## Theo dõi logs
+
+### Database
+```sql
+-- Theo dõi SQL Server logs với PRINT statements trong stored procedures
+PRINT 'Đang xử lý sinh viên với mã: ' + @MaSV;
+
+-- Xem thông tin thực thi câu lệnh
+SET STATISTICS IO ON;
+SET STATISTICS TIME ON;
+GO
+-- your query here
+GO
+SET STATISTICS IO OFF;
+SET STATISTICS TIME OFF;
+GO
+```
+
+### Backend
+```bash
+# Chạy FastAPI với log level chi tiết
+uvicorn app.main:app --reload --log-level debug
+
+# Log được hiển thị trực tiếp trong terminal
+# INFO:     127.0.0.1:xxxxx - "GET /api/sinhvien/ HTTP/1.1" 200 OK
+```
+
+### Frontend
+```bash
+# Chạy React development server
+cd frontend && npm run dev
+
+# Mở browser DevTools (F12)
+# Xem Console tab để kiểm tra logs và errors
+# Sử dụng React DevTools để kiểm tra component tree
+```

@@ -1,0 +1,116 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Phát triển trên môi trường Local
+
+## Database Setup
+```bash
+# Khởi động SQL Server theo hướng dẫn cài đặt
+# Kết nối đến SQL Server qua IDE như SSMS hoặc Azure Data Studio
+# Chạy các scripts trong thư mục database theo thứ tự
+```
+
+## Backend Development
+```bash
+# Activate virtual environment
+source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate   # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run FastAPI development server
+uvicorn app.main:app --reload
+
+# API docs available at http://localhost:8000/docs
+```
+
+## Frontend Development
+```bash
+# Đi đến thư mục frontend
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Frontend available at http://localhost:5173
+```
+
+## Theo dõi logs
+
+### Backend logs
+```bash
+# Logs xuất hiện trực tiếp trong terminal khi chạy uvicorn
+uvicorn app.main:app --reload --log-level debug
+
+# Các events API sẽ hiển thị như:
+# INFO:     127.0.0.1:xxxxx - "GET /api/sinhvien/ HTTP/1.1" 200 OK
+```
+
+### Database logs
+```bash
+# Thêm logging vào stored procedures
+PRINT 'Executing SP_SinhVien_DanhSach with @MaLop = ' + @MaLop;
+
+# Hoặc xem logs thông qua SQL Server log
+SELECT * FROM sys.messages WHERE language_id = 1033 ORDER BY message_id DESC;
+```
+
+### Frontend logs
+```bash
+# Thêm console logs vào React components
+console.log('Data loaded:', data);
+
+# Xem logs trong browser Developer Tools (F12) > Console tab
+```
+
+## Debug Tips
+
+### FastAPI Debug
+```python
+# Thêm log vào endpoints
+logger.debug(f"Request params: {some_param}")
+logger.info(f"Processing data for {some_id}")
+logger.error(f"Error occurred: {str(e)}", exc_info=True)
+
+# Logs sẽ hiển thị trong console khi chạy uvicorn
+```
+
+### React Debug
+```tsx
+// Sử dụng React DevTools để debug components
+// Thêm useEffect để theo dõi state changes
+useEffect(() => {
+  console.log('New state value:', someState);
+}, [someState]);
+```
+
+### SQL Server Debug
+```sql
+-- In ra execution plan
+SET STATISTICS IO ON;
+SET STATISTICS TIME ON;
+GO
+-- your query here
+GO
+SET STATISTICS IO OFF;
+SET STATISTICS TIME OFF;
+GO
+```
+
+## Khắc phục sự cố thường gặp
+
+### Backend errors
+- Kiểm tra logs từ terminal chạy uvicorn
+- Đảm bảo kết nối database được cấu hình đúng trong .env
+- Kiểm tra quyền truy cập database
+
+### Frontend errors
+- Kiểm tra browser console để xem JavaScript errors
+- Kiểm tra Network tab để xem API responses
+- Đảm bảo API endpoints được cấu hình đúng trong services

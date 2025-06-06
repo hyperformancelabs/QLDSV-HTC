@@ -1,0 +1,108 @@
+---
+description: Hướng dẫn phát triển và quản lý database SQL Server cho dự án, bao gồm cấu trúc thư mục, quy tắc đặt tên, và mẫu code.
+globs: 
+alwaysApply: false
+---
+# SQL Server Database Guidelines
+
+## Quy tắc SQL
+- **Idempotence**: Scripts LUÔN bắt đầu với DROP/DELETE IF EXISTS để chạy được nhiều lần
+- **NO Migrations**: KHÔNG sử dụng migrations, mỗi lần chạy sẽ drop/recreate toàn bộ
+- **T-SQL chuẩn**: Sử dụng cú pháp chuẩn của SQL Server mới nhất
+- **Tối ưu hiệu năng**: Tránh SELECT *, set-based thay vì cursor, tạo index phù hợp
+- **Transaction**: Sử dụng transaction cho thao tác phức tạp, xử lý lỗi với TRY/CATCH
+- **Phân quyền**: Triển khai đầy đủ roles: PGV, KHOA, SV theo đề bài
+
+## Cấu trúc thư mục 
+Tuân thủ cấu trúc trong `@database/`:
+```
+@database/
+  01-foundation/ - Database creation & logins
+  02-schema/     - Tables & indexes
+  03-security/   - Roles & permissions
+  04-backup/     - Backup configuration
+  05-data/       - Seed data
+  06-functions/  - User-defined functions
+  07-procedures/ - Stored procedures
+  08-views/      - Database views
+  09-triggers/   - Database triggers
+```
+
+Khi chạy project, scripts sẽ được thực thi theo thứ tự thư mục (từ 01 đến 09).
+
+## Quy tắc đặt tên
+- **Tables**: PascalCase, số ít (VD: `SinhVien`)
+- **Columns**: PascalCase (VD: `MaSinhVien`)
+- **Primary Keys**: PK_{table} (VD: `PK_SinhVien`)
+- **Foreign Keys**: FK_{childTable}_{parentTable} (VD: `FK_SinhVien_Lop`)
+- **Stored Procedures**: SP_{đối tượng}_{hành động} (VD: `SP_SinhVien_TimKiem`)
+- **Functions**: FN_{mô tả} (VD: `FN_TinhDiemTrungBinh`) 
+- **Triggers**: TR_{table}_{thời điểm}{hành động} (VD: `TR_SinhVien_AfterInsert`)
+- **Views**: V_{mô tả} (VD: `V_SinhVien_ThongTinDayDu`)
+
+## Mẫu code
+
+### Table schema
+```sql
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[SinhVien]'))
+DROP TABLE [dbo].[SinhVien]
+GO
+
+CREATE TABLE [dbo].[SinhVien](
+    [MaSV] NCHAR(10) NOT NULL,
+    [Ho] NVARCHAR(50) NOT NULL,
+    [Ten] NVARCHAR(10) NOT NULL,
+    [MaLop] NCHAR(10) NOT NULL,
+    CONSTRAINT [PK_SinhVien] PRIMARY KEY ([MaSV]),
+    CONSTRAINT [FK_SinhVien_Lop] FOREIGN KEY ([MaLop]) 
+        REFERENCES [dbo].[Lop] ([MaLop])
+)
+GO
+```
+
+### Stored Procedure
+```sql
+CREATE OR ALTER PROCEDURE [dbo].[SP_SinhVien_DanhSach]
+    @MaLop NCHAR(10)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Thêm PRINT để debug
+    PRINT 'Executing SP_SinhVien_DanhSach with @MaLop = ' + @MaLop;
+    
+    SELECT sv.MaSV, sv.Ho, sv.Ten, sv.Phai
+    FROM dbo.SinhVien sv
+    WHERE sv.MaLop = @MaLop AND sv.DangNghiHoc = 0
+    ORDER BY sv.Ten, sv.Ho;
+END
+GO
+```
+
+## Chạy & Debug SQL
+
+### Thực thi scripts
+```bash
+# Sử dụng SSMS hoặc Azure Data Studio để chạy scripts theo thứ tự
+
+# Hoặc sử dụng sqlcmd từ command line:
+sqlcmd -S localhost -U sa -P yourpassword -i path/to/script.sql
+```
+
+### Debug SQL
+```sql
+-- Thêm PRINT statements vào stored procedures
+PRINT 'Starting stored procedure with @Param = ' + @Param;
+PRINT 'Found ' + CAST(@@ROWCOUNT AS VARCHAR) + ' rows';
+
+-- Kiểm tra execution plan và performance
+SET STATISTICS IO ON;  -- Hiển thị I/O statistics
+SET STATISTICS TIME ON;  -- Hiển thị execution time
+GO
+-- your query here
+GO
+SET STATISTICS IO OFF;
+SET STATISTICS TIME OFF;
+```
+
+Tham khảo cả ba dự án tham khảo trong `@local/` để xem ví dụ về stored procedures phức tạp, views, functions, và triggers.
