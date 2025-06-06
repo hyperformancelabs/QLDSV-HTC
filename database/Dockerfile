@@ -1,5 +1,5 @@
 # SQL Server 2022 Customized for QLDSV-HTC
-FROM mcr.microsoft.com/mssql/server:2022-latest
+FROM --platform=linux/amd64 mcr.microsoft.com/mssql/server:2022-latest
 
 # Accept EULA
 ENV ACCEPT_EULA=Y
@@ -40,16 +40,19 @@ ENV PATH="$PATH:/opt/mssql-tools18/bin"
 COPY health/healthcheck.sh /var/health/
 RUN chmod +x /var/health/healthcheck.sh
 
-# Copy all database scripts with new structure
-COPY 01-foundation/ /var/scripts/01-foundation/
-COPY 02-schema/ /var/scripts/02-schema/
-COPY 03-security/ /var/scripts/03-security/
-COPY 04-backup/ /var/scripts/04-backup/
-COPY 05-data/ /var/scripts/05-data/
+# Create script directories
+RUN mkdir -p /var/scripts/01-foundation \
+    /var/scripts/02-schema \
+    /var/scripts/03-security \
+    /var/scripts/04-backup \
+    /var/scripts/05-data \
+    /var/scripts/06-functions \
+    /var/scripts/07-procedures \
+    /var/scripts/08-views \
+    /var/scripts/09-triggers
 
-# Set permissions
-RUN find /var/scripts -name "*.sql" -exec chmod +r {} \;
-RUN find /var/scripts -name "*.sh" -exec chmod +x {} \;
+# Set permissions for script directories
+RUN chown -R mssql:mssql /var/scripts
 
 # Switch back to mssql user
 USER mssql

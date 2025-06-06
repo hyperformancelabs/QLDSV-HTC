@@ -35,25 +35,22 @@ database/
 ### 1. Setup Ban Đầu
 ```bash
 # Từ thư mục project root
-./scripts/setup/initial-setup.sh
+./scripts/setup/db/setup-database.sh
 ```
 
 ### 2. Quản Lý Hàng Ngày
 ```bash
-# Xem tất cả commands
-./scripts/database/db-manager.sh help
-
-# Reset nhanh cho development (chỉ schema + data)
-./scripts/database/db-manager.sh dev-reset
-
-# Refresh test data
-./scripts/database/db-manager.sh reseed
-
 # Kiểm tra trạng thái
-./scripts/database/db-manager.sh status
+./scripts/utils/db/db-health-check.sh
+
+# Restart database
+./scripts/utils/db/restart-db.sh
+
+# Reset database (development)
+./scripts/utils/db/reset-db.sh
 ```
 
-## 🛠️ Database Manager Commands
+## 🛠️ Database Management Commands
 
 ### Foundation Commands
 - `init-db` - Khởi tạo database (DROP + CREATE)
@@ -133,48 +130,66 @@ database/
 ```bash
 # 1. Chỉnh sửa file SQL trong database/02-schema/
 # 2. Rebuild schema
-./scripts/database/db-manager.sh rebuild-schema
-
-# 3. Refresh data nếu cần
-./scripts/database/db-manager.sh reseed
+./scripts/utils/db/reset-db.sh
 ```
 
 ### Thay Đổi Permissions
 ```bash
 # 1. Chỉnh sửa file SQL trong database/03-security/
 # 2. Rebuild security
-./scripts/database/db-manager.sh rebuild-security
+./scripts/utils/db/reset-db.sh
 ```
 
 ### Thay Đổi Test Data
 ```bash
 # 1. Chỉnh sửa database/05-data/02-seed-basic-data.sql
 # 2. Refresh data
-./scripts/database/db-manager.sh reseed
+./scripts/utils/db/reset-db.sh
+```
+
+## 💾 Backup & Restore
+
+### Backup Devices
+- **DEVICE_QLDSV_HTC** - Full backups
+- **DEVICE_QLDSV_HTC_LOG** - Transaction log backups  
+- **DEVICE_QLDSV_HTC_DIFF** - Differential backups
+
+### Manual Backup Commands
+```sql
+-- Full backup
+BACKUP DATABASE QLDSV_HTC TO DEVICE_QLDSV_HTC
+WITH FORMAT, INIT, COMPRESSION;
+
+-- Differential backup
+BACKUP DATABASE QLDSV_HTC TO DEVICE_QLDSV_HTC_DIFF
+WITH DIFFERENTIAL, COMPRESSION;
+
+-- Transaction log backup
+BACKUP LOG QLDSV_HTC TO DEVICE_QLDSV_HTC_LOG;
 ```
 
 ## 🎯 Use Cases Phổ Biến
 
 ### Testing Schema Changes
 ```bash
-./scripts/database/db-manager.sh dev-reset
+./scripts/utils/db/reset-db.sh
 ```
 
 ### Adding New Indexes
 ```bash
 # Edit database/02-schema/03-create-indexes.sql
-./scripts/database/db-manager.sh create-indexes
+./scripts/utils/db/reset-db.sh
 ```
 
 ### Changing User Permissions
 ```bash
 # Edit database/03-security/04-set-permissions.sql
-./scripts/database/db-manager.sh set-permissions
+./scripts/utils/db/reset-db.sh
 ```
 
 ### Fresh Start
 ```bash
-./scripts/database/db-manager.sh full-reset
+./scripts/utils/db/reset-db.sh
 ```
 
 ## 🔍 Troubleshooting
@@ -194,23 +209,19 @@ docker-compose restart
 ### Connection Issues
 ```bash
 # Test all connections
-./management/db-manager.sh test-connections
-
-# Check database status
-./management/db-manager.sh status
+./scripts/utils/db/db-health-check.sh
 ```
 
 ### Permission Issues
 ```bash
 # Rebuild security completely
-./scripts/database/db-manager.sh rebuild-security
+./scripts/utils/db/reset-db.sh
 ```
 
 ## 📝 Notes
 
 - Tất cả scripts đều có pattern **DROP trước CREATE** để hỗ trợ development
-- Sử dụng `dev-reset` cho thay đổi thường xuyên
-- Sử dụng `full-reset` khi cần reset hoàn toàn
+- Sử dụng `reset-db.sh` cho thay đổi thường xuyên
 - Backup devices được tự động tạo và cấu hình
 - Test data bao gồm đủ các trường hợp để test nghiệp vụ
 

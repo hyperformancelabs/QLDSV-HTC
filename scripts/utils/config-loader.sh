@@ -43,6 +43,51 @@ load_service_config() {
     fi
 }
 
+# Enhanced environment loader for scripts
+load_env_file() {
+    local ENV_FILE=${1:-}
+
+    # Auto-detect env file
+    if [ -z "$ENV_FILE" ]; then
+        if [ -f ".env.local" ]; then ENV_FILE=".env.local"
+        elif [ -f ".env" ]; then ENV_FILE=".env"
+        else echo "❌ No env file found!"; exit 1; fi
+    fi
+
+    echo "🔍 Using env file: $ENV_FILE"
+    
+    # Improved way to load environment variables - properly handles quoted values
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Skip comments and empty lines
+        [[ $line =~ ^[[:space:]]*# ]] && continue
+        [[ -z $line ]] && continue
+        
+        # Extract key and value
+        if [[ $line =~ ^([a-zA-Z_][a-zA-Z0-9_]*)=(.*)$ ]]; then
+            key="${BASH_REMATCH[1]}"
+            value="${BASH_REMATCH[2]}"
+            
+            # Remove leading/trailing whitespace from key
+            key=$(echo "$key" | xargs)
+            
+            # Handle quoted values (preserve the quotes)
+            if [[ $value =~ ^\".*\"$ ]] || [[ $value =~ ^\'.*\'$ ]]; then
+                # Value is already quoted, keep as is
+                export "$key=$value"
+            else
+                # Value is not quoted, add quotes if it contains spaces
+                if [[ $value == *" "* ]]; then
+                    export "$key=\"$value\""
+                else
+                    export "$key=$value"
+                fi
+            fi
+        fi
+    done < "$ENV_FILE"
+    
+    return 0
+}
+
 validate_global_config() {
     local required_vars=(
         "PROJECT_NAME"
@@ -68,4 +113,5 @@ validate_global_config() {
 # Export functions for use in other scripts
 export -f load_global_config
 export -f load_service_config
+export -f load_env_file
 export -f validate_global_config

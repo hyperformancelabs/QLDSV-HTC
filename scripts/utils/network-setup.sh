@@ -1,6 +1,15 @@
 #!/bin/bash
 set -e
 
+# Source the root directory check and config loader
+source scripts/utils/check-root-dir.sh
+source scripts/utils/config-loader.sh
+
+check_root_dir || exit 1
+
+# Load environment variables
+load_env_file
+
 echo "🌐 [network-setup.sh] Setting up Docker network for QLDSV-HTC..."
 
 # Create Docker network if it doesn't exist
