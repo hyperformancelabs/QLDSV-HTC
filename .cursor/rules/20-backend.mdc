@@ -1,57 +1,52 @@
 ---
 description: 
-globs: backend/**/*.py, app/**/*.py, api/**/*.py
+globs: *.py
 alwaysApply: false
 ---
 # FastAPI Backend Guidelines
 
-## Kiến trúc phân lớp
+## 🏗️ Architecture
 ```
-@backend/app/
-  api/endpoints/ - Router, request/response handling
-  services/      - Business logic
-  db/            - Database models & connections
-  schemas/       - Pydantic models
-  core/          - Config, logging, security
+@backend/
+├── app/
+│   ├── api/endpoints/    # Router, request/response
+│   ├── services/         # Business logic
+│   ├── db/              # Database models & connections
+│   ├── schemas/         # Pydantic models
+│   └── core/            # Config, logging, security
+├── .env                 # Backend-specific config
+├── requirements.txt     # Python dependencies
+└── main.py             # Application entry point
 ```
 
-## Workflow phát triển
-1. **Nghiên cứu yêu cầu**
-   - Đọc kỹ @DESCRIPTION.md và tham khảo CẢ BA project trong `@local/`
-   - Đặc biệt xem cách `@local/QLDSV_TC/` tổ chức gọi stored procedures
+## 🔧 Development Workflow
+1. **Research** → Đọc @DESCRIPTION.md, tham khảo CẢ BA project trong `@local/`
+2. **Build bottom-up** → Pydantic schema → Service → API endpoint
+3. **Prioritize stored procedures** thay vì ORM/raw SQL
+4. **Security & errors** → Phân quyền (PGV/KHOA/SV), xử lý error đầy đủ
+5. **Test & debug** → uvicorn với logs, không cần unit tests
 
-2. **Xây dựng từ dưới lên**
-   - Pydantic schema → Service → API endpoint
-   - Ưu tiên gọi stored procedure thay vì ORM/raw SQL
+## 📝 Code Templates
 
-3. **Xử lý lỗi & bảo mật**
-   - Kiểm tra phân quyền (PGV/KHOA/SV)
-   - Xử lý error với try/except cụ thể
-   - HTTP status code phù hợp (200, 400, 401, 403, 404, 422, 500)
-
-4. **Testing & Debugging**
-   - Sử dụng logging thay vì unit tests
-   - Chạy trực tiếp với uvicorn: `uvicorn app.main:app --reload --log-level debug`
-   - Theo dõi logs trực tiếp trong terminal
-   - Test API thông qua Swagger UI: http://localhost:8000/docs
-
-## Mẫu code
-
-### Pydantic Schema
+### Environment Configuration
 ```python
-class SinhVienBase(BaseModel):
-    ma_sv: str
-    ho: str  
-    ten: str
-    ma_lop: str
-    phai: bool = False
-    
-class SinhVienCreate(SinhVienBase):
-    password: str = "123456"
-    
-class SinhVien(SinhVienBase):
-    class Config:
-        orm_mode = True
+import os
+from functools import lru_cache
+
+@lru_cache()
+def get_settings():
+    """Load settings với caching"""
+    return {
+        "database_url": os.getenv("DATABASE_URL"),
+        "log_level": os.getenv("LOG_LEVEL", "INFO"),
+        "debug": os.getenv("FASTAPI_DEBUG", "false").lower() == "true"
+    }
+
+def validate_environment():
+    required = ["DATABASE_URL", "MSSQL_APP_USER", "MSSQL_APP_PASSWORD"]
+    missing = [var for var in required if not os.getenv(var)]
+    if missing:
+        raise ValueError(f"Missing: {missing}")
 ```
 
 ### API Endpoint
@@ -67,7 +62,6 @@ async def get_sinh_vien_by_lop(
         logger.info(f"User {current_user.username} requesting students for class {ma_lop}")
         sinh_vien = await sinhvien_service.get_by_lop(db, ma_lop)
         if not sinh_vien:
-            logger.warning(f"No students found for class {ma_lop}")
             raise HTTPException(status_code=404, detail="Không tìm thấy sinh viên")
         return sinh_vien
     except Exception as e:
@@ -75,7 +69,7 @@ async def get_sinh_vien_by_lop(
         raise HTTPException(status_code=500, detail=str(e))
 ```
 
-### Service
+### Service with Stored Procedure
 ```python
 async def get_by_lop(db: Session, ma_lop: str) -> List[schemas.SinhVien]:
     """Lấy danh sách sinh viên theo lớp"""
@@ -90,14 +84,8 @@ async def get_by_lop(db: Session, ma_lop: str) -> List[schemas.SinhVien]:
         raise HTTPException(status_code=500, detail="Database error")
 ```
 
-## Authentication & Authorization
-
-- Sử dụng JWT cho xác thực
-- Phân quyền theo role: PGV, KHOA, SV
-- Kiểm tra quyền dựa trên role, không chỉ dựa vào login
-
+### Role-based Permissions
 ```python
-# Role-based permission check
 def get_current_user_with_permissions(required_permissions: List[str]):
     def current_user_with_permissions(
         current_user: models.User = Depends(get_current_active_user),
@@ -107,18 +95,13 @@ def get_current_user_with_permissions(required_permissions: List[str]):
             if permission not in user_permissions:
                 raise HTTPException(
                     status_code=403,
-                    detail=f"Không có quyền thực hiện chức năng này"
+                    detail="Không có quyền thực hiện chức năng này"
                 )
         return current_user
     return current_user_with_permissions
 ```
 
-## Error Handling
-
-- Sử dụng HTTP status codes phù hợp
-- Trả về thông báo lỗi rõ ràng
-- Ghi log đầy đủ thông tin lỗi
-
+## 🛡️ Error Handling Patterns
 ```python
 try:
     # Business logic
@@ -127,7 +110,7 @@ except ValidationError as e:
     raise HTTPException(status_code=422, detail=str(e))
 except PermissionError:
     logger.warning(f"Permission denied for user {current_user.username}")
-    raise HTTPException(status_code=403, detail="Không có quyền thực hiện chức năng này")
+    raise HTTPException(status_code=403, detail="Không có quyền")
 except ResourceNotFoundError:
     raise HTTPException(status_code=404, detail="Không tìm thấy tài nguyên")
 except Exception as e:
@@ -135,46 +118,66 @@ except Exception as e:
     raise HTTPException(status_code=500, detail="Lỗi hệ thống")
 ```
 
-## Logging
+## 📊 Logging Setup
 ```python
-# Cấu hình logging trong backend/app/core/logging.py
+# backend/app/core/logging.py
 import logging
 import sys
 
 logger = logging.getLogger("qldsv_htc")
 logger.setLevel(logging.DEBUG)
 
-# Console handler để output log ra terminal
 handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+handler.setFormatter(logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+))
 logger.addHandler(handler)
-
-# Sử dụng trong code
-logger.debug("Debug message")
-logger.info("Processing request")
-logger.warning("Warning: resource not found")
-logger.error("Error occurred", exc_info=True)
 ```
 
-## Security
-
-- Không lưu mật khẩu dưới dạng plain text
-- Validate input từ người dùng
-- Sử dụng HTTPS cho API
-- Chống SQL injection bằng cách sử dụng parameterized queries
-
-## Chạy và debug backend
+## 🚀 Running & Debugging
 ```bash
-# Activate virtual environment
-source venv/bin/activate  # On Mac/Linux
-# venv\Scripts\activate   # On Windows
-
-# Install dependencies
+cd backend
+source venv/bin/activate
 pip install -r requirements.txt
 
-# Chạy development server với reload và log chi tiết
+# Development server với logs
 uvicorn app.main:app --reload --log-level debug
 
-# Truy cập API docs
-# http://localhost:8000/docs
+# API docs: http://localhost:8000/docs
 ```
+
+## ❌ Anti-Patterns
+```python
+# ❌ Wrong: Hardcode configuration
+DATABASE_URL = "mssql://localhost:1433/QLDSV_HTC"
+
+# ✅ Right: Environment variables
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# ❌ Wrong: No error handling
+def get_user(id):
+    return db.query(User).filter(User.id == id).first()
+
+# ✅ Right: With proper error handling
+def get_user(id):
+    try:
+        return db.query(User).filter(User.id == id).first()
+    except SQLAlchemyError as e:
+        logger.error(f"Database error: {e}")
+        raise HTTPException(status_code=500, detail="Database error")
+```
+
+## 📦 Dependencies (requirements.txt)
+```txt
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+sqlalchemy>=2.0.0
+pyodbc>=4.0.0
+pydantic>=2.0.0
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+python-dotenv
+```
+
+Tham khảo CẢ BA dự án trong `@local/` để học patterns, error handling, và business logic structure.

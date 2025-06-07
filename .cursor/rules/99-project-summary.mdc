@@ -1,0 +1,199 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# QLDSV-HTC Project Summary
+
+## 🎯 Project Overview
+**Hệ thống Quản lý Điểm Sinh viên theo Hệ Tín chỉ** - Đồ án cuối kỳ môn "Hệ quản trị Cơ sở Dữ liệu"
+
+## 🏗️ Tech Stack
+- **Database**: SQL Server (Docker) - Stored procedures, triggers, functions, views
+- **Backend**: FastAPI (Python) - RESTful API, business logic
+- **Frontend**: React + TypeScript + Vite + Ant Design
+- **Development**: Hot-reload, environment-based config, advanced script management
+
+## 📁 Project Structure
+```
+QLDSV-HTC/
+├── database/                # SQL Server scripts (01-09 folders)
+├── backend/                 # FastAPI application
+├── frontend/                # React application  
+├── scripts/                 # Advanced management scripts
+│   ├── setup/              # Initial setup cho từng component
+│   │   ├── db/setup-database.sh    # Database setup với platform detection
+│   │   ├── be/setup-backend.sh     # Backend environment setup
+│   │   └── fe/setup-frontend.sh    # Frontend environment setup
+│   ├── utils/              # Runtime utilities theo component
+│   │   ├── check-root-dir.sh       # Root directory validation
+│   │   ├── config-loader.sh        # Advanced config management
+│   │   ├── network-setup.sh        # Docker network management
+│   │   ├── db/                     # Database operations
+│   │   │   ├── start-db.sh
+│   │   │   ├── stop-db.sh
+│   │   │   ├── restart-db.sh
+│   │   │   ├── reset-db.sh         # With confirmation
+│   │   │   ├── delete-db.sh        # With confirmation
+│   │   │   └── db-health-check.sh  # Comprehensive monitoring
+│   │   ├── be/start-backend.sh     # Backend service management
+│   │   └── fe/start-frontend.sh    # Frontend service management
+│   ├── start-database.sh    # Quick database start wrapper
+│   ├── start-backend.sh     # Quick backend start wrapper
+│   └── start-frontend.sh    # Quick frontend start wrapper
+├── docs/                    # Documentation
+├── local/                   # Reference projects (CẢ BA dự án)
+└── .env                     # Root configuration với inheritance
+```
+
+## 🚀 Quick Start
+
+### Initial Setup (First Time)
+```bash
+# 1. Environment validation
+source scripts/utils/config-loader.sh
+load_env_file
+validate_global_config
+
+# 2. Component setup trong order
+./scripts/setup/db/setup-database.sh --default    # Includes Apple Silicon support
+./scripts/setup/be/setup-backend.sh --default     # Python venv + dependencies
+./scripts/setup/fe/setup-frontend.sh --default    # npm install + .env
+
+# 3. Start services
+./scripts/start-database.sh
+./scripts/start-backend.sh  
+./scripts/start-frontend.sh
+```
+
+### Daily Development (Quick Start)
+```bash
+# 1. Load environment
+source scripts/utils/config-loader.sh
+load_env_file
+
+# 2. Start all services (với auto-setup nếu cần)
+./scripts/start-database.sh --full-default-setup   # Optional auto-setup
+./scripts/start-backend.sh --full-default-setup    # Optional auto-setup
+./scripts/start-frontend.sh --full-default-setup   # Optional auto-setup
+
+# 3. Access applications
+# Database: localhost:1434
+# Backend API: http://localhost:8000/docs
+# Frontend: http://localhost:5173
+```
+
+## 🔑 Key Principles với New Architecture
+1. **SQL optimization first** - Stored procedures > ORM
+2. **No migrations** - Drop/recreate database each run với reset scripts
+3. **Role-based access** - PGV, KHOA, SV permissions
+4. **Environment inheritance** - Root .env → component .env với config-loader.sh
+5. **Advanced script management** - Component isolation, health checks, confirmations
+6. **Cross-platform compatibility** - Apple Silicon detection, platform-specific handling
+7. **Terminal debugging** - Comprehensive logs, health reports over unit tests
+
+## 📚 Reference Projects (MUST READ)
+- `@local/QLDSV_TC/` - Database patterns, UI forms
+- `@local/Other/HQT-CSDL/` - Business logic, error handling  
+- `@local/Other/TracNghiem_Distributed-Database_INT1414/` - Query optimization
+
+## 🛠️ Common Commands
+
+### Database Operations
+```bash
+# Quick operations
+./scripts/start-database.sh                    # Start với health check
+./scripts/utils/db/db-health-check.sh         # Comprehensive monitoring
+
+# Database lifecycle management
+./scripts/utils/db/start-db.sh                # Start container only
+./scripts/utils/db/stop-db.sh                 # Stop container only
+./scripts/utils/db/restart-db.sh              # Restart container
+./scripts/utils/db/reset-db.sh                # Reset với user confirmation
+./scripts/utils/db/delete-db.sh               # Delete với user confirmation
+
+# Network management
+./scripts/utils/network-setup.sh              # Docker network setup
+```
+
+### Backend Operations
+```bash
+# Development workflow
+./scripts/setup/be/setup-backend.sh --default # Initial setup
+./scripts/start-backend.sh                    # Quick start
+./scripts/utils/be/start-backend.sh           # Direct start
+
+# Manual development
+cd backend && source venv/bin/activate
+uvicorn app.main:app --reload --log-level debug
+```
+
+### Frontend Operations
+```bash
+# Development workflow
+./scripts/setup/fe/setup-frontend.sh --default # Initial setup  
+./scripts/start-frontend.sh                    # Quick start
+./scripts/utils/fe/start-frontend.sh           # Direct start
+
+# Manual development
+cd frontend && npm run dev
+```
+
+### Health Monitoring
+```bash
+# Service health checks
+./scripts/utils/db/db-health-check.sh         # Database comprehensive report
+curl -s http://localhost:8000/health | jq '.' # Backend health
+curl -s http://localhost:5173/ > /dev/null    # Frontend health
+```
+
+## 📋 Development Workflow
+1. **Research** → Read @DESCRIPTION.md, reference CẢ BA projects
+2. **Environment** → Config loader validation, cross-platform setup
+3. **Setup** → Component-specific setup scripts với platform detection
+4. **Build** → Database (với health checks) → Backend → Frontend
+5. **Debug** → Advanced logging, health reports, script diagnostics
+6. **Test** → Direct UI/API testing, comprehensive health monitoring
+
+## 🔧 Advanced Features
+
+### Apple Silicon Mac Support
+- Automatic platform detection với `uname` checks
+- Docker version compatibility validation (4.16.0+)
+- Rosetta 2 automatic installation
+- Docker Desktop settings guidance
+- Platform-specific SQL Server container handling
+
+### Configuration Management
+- **Config inheritance**: Root .env → component .env
+- **Advanced loading**: `config-loader.sh` với quoted values support
+- **Environment validation**: Required variables checking
+- **Cross-platform paths**: Auto-detection cho Windows/Linux/macOS
+
+### Health Monitoring
+- **Database health**: Connection tests, permissions audit, performance metrics
+- **Service monitoring**: Process checks, port validation, logs analysis
+- **Script diagnostics**: Progress indicators, validation checks, error handling
+
+### Safety Features
+- **Root directory validation**: Scripts check proper execution location
+- **Confirmation prompts**: Destructive operations require user confirmation
+- **Environment validation**: Missing variables detection
+- **Error handling**: Graceful failure với detailed error messages
+
+## 🎯 Success Criteria với New Tools
+- ✅ Efficient SQL queries với proper indexing và health monitoring
+- ✅ Complete role-based permissions (PGV/KHOA/SV) với security audit
+- ✅ Responsive UI với Ant Design
+- ✅ Advanced error handling và comprehensive logging
+- ✅ Cross-platform compatibility với Apple Silicon support
+- ✅ Component isolation với script architecture
+- ✅ Development workflow optimization với quick start commands
+
+## 🆕 New Architecture Benefits
+1. **Component Isolation** - Setup và management scripts chia theo be/db/fe
+2. **Safety First** - Confirmation prompts cho destructive operations
+3. **Platform Support** - Cross-platform với Apple Silicon optimization
+4. **Health Focus** - Comprehensive monitoring và diagnostics
+5. **Environment Management** - Advanced config inheritance với validation
+6. **Developer Experience** - Quick start wrappers với auto-setup options

@@ -1,6 +1,6 @@
 ---
-description: 
-globs: 
+description: "Clean Code Guidelines và coding standards cho dự án QLDSV-HTC"
+globs: ["**/*.py", "**/*.ts", "**/*.tsx", "**/*.sql"]
 alwaysApply: true
 ---
 # Clean Code Guidelines

@@ -1,6 +1,6 @@
 ---
-description: 
-globs: 
+description: "QLDSV-HTC: Hệ thống quản lý điểm sinh viên theo hệ tín chỉ - Context và kiến trúc tổng quan dự án"
+globs: ["**/*"]
 alwaysApply: true
 ---
 # QLDSV-HTC: Hệ thống quản lý điểm sinh viên theo hệ tín chỉ
@@ -12,9 +12,13 @@ Trước khi bắt đầu bất kỳ nhiệm vụ nào, hãy LUÔN đọc các t
 
 1. **@README.md và @DESCRIPTION.md** để hiểu tổng quan và yêu cầu đề bài
    
-2. **Tài liệu môn học** trong thư mục `@course_materials/md_format` để nắm rõ các nguyên lý và kỹ thuật đặc thù của SQL Server
+2. **@docs/DATABASE_SETUP.md** - Hướng dẫn setup và quản lý database
+   **@docs/BACKEND.md** - Cấu trúc và development backend
+   **@docs/FRONTEND.md** - Architecture và workflow frontend (sẽ được tạo)
 
-3. **Các dự án tham khảo** trong thư mục `@local/`: PHẢI tham khảo CẢ BA dự án sau để có cái nhìn toàn diện:
+3. **Tài liệu môn học** trong thư mục `@course_materials/md_format` để nắm rõ các nguyên lý và kỹ thuật đặc thù của SQL Server
+
+4. **Các dự án tham khảo** trong thư mục `@local/`: PHẢI tham khảo CẢ BA dự án sau để có cái nhìn toàn diện:
    - **`@local/QLDSV_TC/`**: Hệ thống quản lý điểm sinh viên tương tự - học cách tổ chức database, stored procedures, và UI forms
    - **`@local/Other/HQT-CSDL/`**: Mẫu ứng dụng CRUD đầy đủ với phân tách lớp tốt, cấu trúc business logic, và xử lý lỗi
    - **`@local/Other/TracNghiem_Distributed-Database_INT1414/`**: Ví dụ về tối ưu truy vấn, phân quyền, và mở rộng logic
@@ -33,3 +37,9 @@ Hãy dành thời gian xem cả ba dự án để nắm được nhiều cách t
 4. Code phải dễ đọc, dễ bảo trì và có tài liệu đầy đủ
 5. Không sử dụng migrations - mỗi khi chạy project sẽ chạy lại toàn bộ các file trong database
 6. Test trực tiếp qua terminal và log server, không cần viết unit/integration tests
+
+## Environment và Configuration
+- Sử dụng `.env` files theo pattern kế thừa: root `.env` → layer-specific `.env`
+- Tránh hardcode configuration, sử dụng environment variables
+- Development environment prioritizes hot-reload và debugging capabilities
+- Cross-platform compatibility với SQL Server (Docker)

@@ -1,0 +1,217 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Environment & Configuration Management
+
+## 📁 Structure Pattern với Config Loading
+```
+/.env                           # Root config (shared)
+/backend/.env                   # Backend-specific  
+/frontend/.env                  # Frontend-specific
+/database/.env                  # Database-specific
+scripts/utils/config-loader.sh  # Advanced config management
+```
+
+## 🔧 Configuration Inheritance với Config Loader
+
+### Config Loader Functions
+```bash
+# Load global config với inheritance
+source scripts/utils/config-loader.sh
+load_global_config        # Load root .env + .env.local
+
+# Load service-specific config
+load_service_config "backend"    # Load global + backend/.env
+load_service_config "frontend"   # Load global + frontend/.env
+
+# Enhanced env loading với proper quoted values handling
+load_env_file              # Auto-detect .env.local or .env
+load_env_file ".env.prod"  # Specific env file
+```
+
+### Root Configuration (.env)
+```bash
+# Project identification
+PROJECT_NAME="QLDSV-HTC"
+
+# Database settings
+DB_HOST=localhost
+DB_PORT=1434
+DB_NAME=QLDSV_HTC
+DB_CONTAINER_NAME=qldsv-sqlserver
+DOCKER_NETWORK=qldsv-network
+
+# Service ports
+BACKEND_PORT=8000
+FRONTEND_PORT=5173
+
+# Database credentials
+MSSQL_SA_PASSWORD="YourStrongPassword123!"
+MSSQL_APP_USER="app_user"
+MSSQL_APP_PASSWORD="AppPassword123!"
+```
+
+### Backend (.env)
+```bash
+# Database connection với inheritance từ root
+DATABASE_URL="mssql+pyodbc://${MSSQL_APP_USER}:${MSSQL_APP_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+SQLALCHEMY_POOL_SIZE=10
+LOG_LEVEL=DEBUG
+FASTAPI_DEBUG=true
+FASTAPI_RELOAD=true
+
+# Backend service config
+BACKEND_HOST=0.0.0.0
+BACKEND_API_URL="http://localhost:${BACKEND_PORT}"
+```
+
+### Frontend (.env)
+```bash
+# API connection với inheritance từ root
+VITE_API_BASE_URL="http://localhost:${BACKEND_PORT}/api/v1"
+VITE_API_URL="http://localhost:${BACKEND_PORT}"
+VITE_HMR_PORT=${FRONTEND_PORT}
+VITE_APP_NAME="QLDSV-HTC"
+VITE_APP_VERSION="1.0.0"
+```
+
+## 📝 Script Integration Patterns
+
+### Using Config Loader in Scripts
+```bash
+#!/bin/bash
+set -e
+
+# Source utilities
+source scripts/utils/check-root-dir.sh
+source scripts/utils/config-loader.sh
+
+# Validate root directory
+check_root_dir || exit 1
+
+# Load configuration
+load_env_file  # Auto-detect env file
+
+# Validate required variables
+validate_global_config
+```
+
+### Advanced Environment Validation
+```bash
+# From config-loader.sh
+validate_global_config() {
+    local required_vars=(
+        "PROJECT_NAME"
+        "DB_HOST" "DB_PORT" "DB_NAME"
+        "MSSQL_SA_PASSWORD"
+        "MSSQL_APP_USER" "MSSQL_APP_PASSWORD"
+        "DB_CONTAINER_NAME"
+    )
+    
+    for var in "${required_vars[@]}"; do
+        if [ -z "${!var}" ]; then
+            echo "❌ Missing required variable: $var"
+            exit 1
+        fi
+    done
+}
+```
+
+### Cross-Platform Support
+```bash
+# Platform detection in scripts
+if [[ "$(uname)" == "Darwin" && "$(uname -m)" == "arm64" ]]; then
+    echo "🍎 Detected Apple Silicon Mac..."
+    # Apple Silicon specific setup
+elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    echo "🐧 Detected Linux..."
+    # Linux specific setup
+elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+    echo "🪟 Detected Windows..."
+    # Windows specific setup
+fi
+```
+
+## 🚀 Script Architecture Commands
+
+### Setup Commands (Initial)
+```bash
+# Component-specific setup
+./scripts/setup/db/setup-database.sh --default
+./scripts/setup/be/setup-backend.sh --default  
+./scripts/setup/fe/setup-frontend.sh --default
+
+# Setup với full-default option
+./scripts/start-database.sh --full-default-setup
+./scripts/start-backend.sh --full-default-setup
+./scripts/start-frontend.sh --full-default-setup
+```
+
+### Runtime Commands (Daily Use)
+```bash
+# Quick start services
+./scripts/start-database.sh
+./scripts/start-backend.sh
+./scripts/start-frontend.sh
+
+# Database operations
+./scripts/utils/db/start-db.sh
+./scripts/utils/db/stop-db.sh
+./scripts/utils/db/restart-db.sh
+./scripts/utils/db/reset-db.sh         # Reset with confirmation
+./scripts/utils/db/delete-db.sh        # Delete with confirmation
+./scripts/utils/db/db-health-check.sh  # Comprehensive health check
+
+# Network setup
+./scripts/utils/network-setup.sh
+```
+
+### Environment Validation Workflow
+```bash
+# Daily validation
+source .env
+python -c "
+import os
+required = ['DB_HOST', 'DB_PORT', 'BACKEND_PORT', 'MSSQL_SA_PASSWORD']
+missing = [var for var in required if not os.getenv(var)]
+if missing: print(f'Missing: {missing}'); exit(1)
+print('✅ Environment OK')
+"
+```
+
+## 📊 Daily Development với New Scripts
+
+### Startup Sequence
+```bash
+# 1. Environment validation
+source scripts/utils/config-loader.sh
+load_env_file
+
+# 2. Start services in order
+./scripts/start-database.sh     # Includes setup if needed
+./scripts/start-backend.sh      # Includes setup if needed  
+./scripts/start-frontend.sh     # Includes setup if needed
+
+# 3. Health check
+./scripts/utils/db/db-health-check.sh
+curl http://localhost:8000/health
+curl http://localhost:5173/
+```
+
+### Development Reset
+```bash
+# Full reset workflow
+./scripts/utils/db/reset-db.sh     # Reset database với confirmation
+./scripts/start-backend.sh         # Restart backend
+./scripts/start-frontend.sh        # Restart frontend
+```
+
+## 🔒 Security & Best Practices
+- **Config Loader** automatically handles quoted values và variable expansion
+- **Root directory validation** trước khi chạy script
+- **Environment validation** với required variables check
+- **Cross-platform compatibility** với platform detection
+- **Service isolation** với component-based organization
+- **Confirmation prompts** cho destructive operations (reset, delete)

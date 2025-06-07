@@ -1,0 +1,156 @@
+---
+description: 
+globs: *.sql
+alwaysApply: false
+---
+# SQL Server Optimization & Performance
+
+## 🚀 Query Optimization Principles
+
+### Index Strategy
+```sql
+-- Create composite indexes cho frequently queried columns
+CREATE NONCLUSTERED INDEX IX_SinhVien_MaLop_Phai 
+ON SinhVien (MaLop, Phai) 
+INCLUDE (MaSV, Ho, Ten);
+
+-- Avoid over-indexing - monitor index usage
+SELECT 
+    i.name AS IndexName,
+    s.user_seeks,
+    s.user_scans,
+    s.user_lookups,
+    s.user_updates
+FROM sys.indexes i
+LEFT JOIN sys.dm_db_index_usage_stats s 
+    ON i.object_id = s.object_id AND i.index_id = s.index_id
+WHERE OBJECTPROPERTY(i.object_id, 'IsUserTable') = 1;
+```
+
+### Query Performance Patterns
+```sql
+-- ✅ Set-based operations (fast)
+UPDATE SinhVien 
+SET TrangThai = 'Active'
+WHERE MaLop IN ('CNTT01', 'CNTT02', 'CNTT03');
+
+-- ❌ Cursor-based (slow)
+DECLARE cursor_sv CURSOR FOR SELECT MaSV FROM SinhVien;
+-- Avoid cursors for bulk operations
+
+-- ✅ Efficient JOIN với proper indexes
+SELECT sv.MaSV, sv.Ho + ' ' + sv.Ten AS HoTen, l.TenLop
+FROM SinhVien sv
+INNER JOIN Lop l ON sv.MaLop = l.MaLop
+WHERE l.MaKhoa = 'CNTT'
+    AND sv.DangNghiHoc = 0;
+
+-- ✅ Use EXISTS instead of IN for large datasets
+SELECT sv.MaSV, sv.Ho, sv.Ten
+FROM SinhVien sv
+WHERE EXISTS (
+    SELECT 1 FROM KetQuaHocTap kq 
+    WHERE kq.MaSV = sv.MaSV AND kq.Diem >= 8.0
+);
+```
+
+## 📊 Performance Monitoring
+
+### Execution Plans & Statistics
+```sql
+-- Enable detailed performance info
+SET STATISTICS IO ON;
+SET STATISTICS TIME ON;
+SET STATISTICS PROFILE ON;
+
+-- Your query here
+SELECT sv.MaSV, AVG(kq.Diem) as DiemTB
+FROM SinhVien sv
+JOIN KetQuaHocTap kq ON sv.MaSV = kq.MaSV
+WHERE sv.MaLop = 'CNTT01'
+GROUP BY sv.MaSV, sv.Ho, sv.Ten
+HAVING AVG(kq.Diem) >= 7.0;
+
+-- Disable statistics
+SET STATISTICS IO OFF;
+SET STATISTICS TIME OFF;
+SET STATISTICS PROFILE OFF;
+```
+
+## 🔍 Stored Procedure Optimization
+
+### Efficient Parameter Sniffing Prevention
+```sql
+CREATE OR ALTER PROCEDURE SP_SinhVien_TimKiem_Optimized
+    @MaLop NCHAR(10) = NULL,
+    @TenSV NVARCHAR(50) = NULL,
+    @DiemTuoi FLOAT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Declare local variables để avoid parameter sniffing
+    DECLARE @MaLop_Local NCHAR(10) = @MaLop;
+    DECLARE @TenSV_Local NVARCHAR(50) = @TenSV;
+    DECLARE @DiemTuoi_Local FLOAT = @DiemTuoi;
+    
+    -- Dynamic SQL cho complex searches
+    DECLARE @SQL NVARCHAR(MAX) = N'
+        SELECT sv.MaSV, sv.Ho, sv.Ten, sv.MaLop
+        FROM SinhVien sv';
+    
+    DECLARE @WhereClause NVARCHAR(MAX) = N' WHERE 1=1';
+    
+    IF @MaLop_Local IS NOT NULL
+        SET @WhereClause += N' AND sv.MaLop = @MaLop';
+        
+    IF @TenSV_Local IS NOT NULL
+        SET @WhereClause += N' AND (sv.Ho LIKE @TenSV OR sv.Ten LIKE @TenSV)';
+        
+    IF @DiemTuoi_Local IS NOT NULL
+        SET @WhereClause += N' AND EXISTS (
+            SELECT 1 FROM KetQuaHocTap kq 
+            WHERE kq.MaSV = sv.MaSV AND kq.Diem >= @DiemTuoi)';
+    
+    SET @SQL += @WhereClause + N' ORDER BY sv.Ten, sv.Ho';
+    
+    EXEC sp_executesql @SQL, 
+        N'@MaLop NCHAR(10), @TenSV NVARCHAR(50), @DiemTuoi FLOAT',
+        @MaLop, @TenSV, @DiemTuoi;
+END
+GO
+```
+
+## 💾 Memory & Tempdb Optimization
+
+### Efficient Temporary Storage
+```sql
+-- ✅ Use table variables cho small datasets
+DECLARE @TempResults TABLE (
+    MaSV NCHAR(10) PRIMARY KEY,
+    DiemTB FLOAT,
+    XepLoai NVARCHAR(20)
+);
+
+-- ✅ Use temp tables cho large datasets với indexes
+CREATE TABLE #TempLargeResults (
+    MaSV NCHAR(10) PRIMARY KEY,
+    DiemTB FLOAT,
+    XepLoai NVARCHAR(20)
+);
+
+CREATE INDEX IX_TempLargeResults_DiemTB ON #TempLargeResults (DiemTB);
+
+-- ✅ Always clean up temp objects
+DROP TABLE #TempLargeResults;
+```
+
+## ⚡ Quick Performance Checklist
+- [ ] **Indexes**: Proper composite indexes on frequently queried columns
+- [ ] **Statistics**: Keep statistics updated with AUTO_UPDATE_STATISTICS
+- [ ] **Joins**: Use appropriate join types và order
+- [ ] **WHERE clauses**: Most selective conditions first
+- [ ] **SELECT lists**: Avoid SELECT *, specify needed columns only
+- [ ] **Batching**: Large operations in smaller batches
+- [ ] **Temp objects**: Clean up temporary tables/variables
+- [ ] **Parameter sniffing**: Use local variables in stored procedures

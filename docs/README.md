@@ -37,14 +37,36 @@ cp .env.example .env
 ### 3. Thiết lập và chạy hệ thống
 
 ```bash
-# Thiết lập database
-./scripts/setup/db/setup-database.sh
+# Thiết lập ban đầu
+./scripts/setup/db/setup-database.sh --default
+./scripts/setup/be/setup-backend.sh --default
+./scripts/setup/fe/setup-frontend.sh --default
 
-# Thiết lập backend
-./scripts/setup/be/setup-backend.sh
+# Hoặc khởi động nhanh với auto-setup
+./scripts/start-database.sh --full-default-setup
+./scripts/start-backend.sh --full-default-setup
+./scripts/start-frontend.sh --full-default-setup
+```
 
-# Thiết lập frontend
-./scripts/setup/fe/setup-frontend.sh
+### 4. Truy cập ứng dụng
+
+- **Database**: localhost:1434 (SQL Server)
+- **Backend API**: http://localhost:8000 (Docs: http://localhost:8000/docs)
+- **Frontend**: http://localhost:5173
+
+### 5. Quản lý hệ thống
+
+```bash
+# Kiểm tra sức khỏe database
+./scripts/utils/db/db-health-check.sh
+
+# Khởi động lại từng component
+./scripts/utils/db/restart-db.sh
+./scripts/start-backend.sh
+./scripts/start-frontend.sh
+
+# Reset database (với xác nhận)
+./scripts/utils/db/reset-db.sh
 ```
 
 ## Tài liệu chi tiết
