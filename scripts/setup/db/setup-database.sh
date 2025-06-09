@@ -1,156 +1,116 @@
 #!/bin/bash
 set -e
 
-# Source the root directory check and config loader
+# Source utilities
 source scripts/utils/check-root-dir.sh
 source scripts/utils/config-loader.sh
 
 check_root_dir || exit 1
 
-# Main script
-echo "🛠️ [setup-database.sh] Setting up QLDSV-HTC database..."
-
 # Load environment variables
 load_env_file
 
-# Check if Docker is installed and running
+echo "🚀 Setting up database environment..."
+
+# Check if Docker is installed
 if ! command -v docker &> /dev/null; then
     echo "❌ Docker is not installed or not in PATH"
+    echo "   Please install Docker Desktop: https://www.docker.com/products/docker-desktop/"
     exit 1
 fi
 
-if ! docker info &> /dev/null; then
-    echo "❌ Docker is not running"
-    exit 1
+# Create Docker network if it doesn't exist
+if ! docker network inspect $DOCKER_NETWORK &> /dev/null; then
+    echo "🔄 Creating Docker network: $DOCKER_NETWORK"
+    docker network create $DOCKER_NETWORK
 fi
 
-# Platform-specific checks
+# Check for SQL Server image
+if ! docker images | grep -q "mcr.microsoft.com/mssql/server"; then
+    echo "🔄 Pulling SQL Server image..."
+    docker pull mcr.microsoft.com/mssql/server:2022-latest
+fi
+
+# Check platform for Apple Silicon Macs
 if [[ "$(uname)" == "Darwin" && "$(uname -m)" == "arm64" ]]; then
-    echo "🍎 Detected Apple Silicon Mac..."
+    echo "🍎 Detected Apple Silicon Mac."
+    echo "   Verifying Docker settings for SQL Server compatibility..."
     
-    # Check Docker version for Apple Silicon compatibility
-    DOCKER_VERSION=$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "0.0.0")
-    MIN_VERSION="4.16.0"
-    
-    if [[ "$(printf '%s\n' "$MIN_VERSION" "$DOCKER_VERSION" | sort -V | head -n1)" != "$MIN_VERSION" ]]; then
-        echo "⚠️ Warning: Your Docker version ($DOCKER_VERSION) may be too old."
-        echo "   For SQL Server on Apple Silicon, Docker 4.16.0 or later is recommended."
-        echo "   Please consider updating Docker Desktop."
-        read -p "Continue anyway? (y/n) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
-        fi
+    # Check Docker version (needs 4.16+ for better ARM support)
+    DOCKER_VERSION=$(docker version --format '{{.Server.Version}}' | cut -d. -f1,2)
+    if (( $(echo "$DOCKER_VERSION < 4.16" | bc -l) )); then
+        echo "⚠️  Your Docker version is $DOCKER_VERSION."
+        echo "   For best performance on Apple Silicon, consider upgrading to Docker Desktop 4.16+"
     fi
     
-    # Check if Rosetta 2 is installed
-    if ! pgrep -q oahd; then
-        echo "⚙️ Installing Rosetta 2 (required for SQL Server on Apple Silicon)..."
-        softwareupdate --install-rosetta --agree-to-license
-        
-        if [ $? -ne 0 ]; then
-            echo "❌ Failed to install Rosetta 2. Please install it manually with:"
-            echo "   softwareupdate --install-rosetta --agree-to-license"
-            exit 1
-        fi
-        
-        echo "✅ Rosetta 2 installed successfully."
-    else
-        echo "✅ Rosetta 2 is already installed."
-    fi
-    
-    echo "ℹ️ Make sure you have enabled the following in Docker Desktop:"
-    echo "   1. Settings > General > 'Use Virtualization Framework'"
-    echo "   2. Settings > Features in development > 'Use Rosetta for x86/amd64 emulation on Apple Silicon'"
-    echo "   After changing these settings, restart Docker Desktop."
-    
-    read -p "Have you enabled these settings? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Please enable the settings and run this script again."
-        exit 1
-    fi
+    echo "✅ Platform setup complete for Apple Silicon Mac."
 fi
 
-# Create network if it doesn't exist
-if ! docker network inspect qldsv-network &>/dev/null; then
-    echo "🌐 Creating Docker network: qldsv-network"
-    docker network create --subnet=172.25.0.0/16 qldsv-network
-fi
+# Create database directories
+mkdir -p database/backups
+mkdir -p database/health
 
-# Start database container if not running
-if [ ! "$(docker ps -q -f name=$DB_CONTAINER_NAME)" ]; then
-    echo "🚀 Starting database container..."
-    cd database
-    docker-compose up -d --build
+# Check and update permissions
+echo "🔄 Setting up database directory permissions..."
+chmod +x scripts/utils/db/*.sh 2>/dev/null || true
+chmod +x scripts/setup/db/install-odbc-driver.sh 2>/dev/null || true
+
+# Check if the ODBC driver installation script exists
+if [ -f "scripts/setup/db/install-odbc-driver.sh" ]; then
+    # Check if pyodbc can connect without errors
+    echo "🔍 Checking if ODBC driver is properly installed..."
     
-    echo "⏳ Waiting for database to be ready..."
-    for i in {1..60}; do
-        if [ "$(docker inspect --format='{{.State.Health.Status}}' $DB_CONTAINER_NAME 2>/dev/null)" == "healthy" ]; then
-            echo "✅ SQL Server is now healthy and ready."
-            break
+    # Check if pyodbc can be imported in the project's virtual environment
+    PYODBC_CHECK="failed"
+    
+    # Try to import pyodbc from different locations
+    if [ -f "backend/venv/bin/python" ]; then
+        echo "🔍 Checking pyodbc in backend virtual environment..."
+        if backend/venv/bin/python -c "import pyodbc; print('SUCCESS')" 2>/dev/null; then
+            PYODBC_CHECK="backend_venv"
+        fi
+    elif [ -f "venv/bin/python" ]; then
+        echo "🔍 Checking pyodbc in root virtual environment..."
+        if venv/bin/python -c "import pyodbc; print('SUCCESS')" 2>/dev/null; then
+            PYODBC_CHECK="root_venv"
+        fi
+    elif python3 -c "import pyodbc" 2>/dev/null; then
+        echo "🔍 Checking pyodbc in system Python..."
+        PYODBC_CHECK="system"
+    fi
+    
+    if [ "$PYODBC_CHECK" != "failed" ]; then
+        echo "✅ pyodbc found in $PYODBC_CHECK environment"
+        # Skip connection test for now since database may not be running
+        echo "📝 ODBC driver check will be performed after database startup"
+
+            else
+        echo "⚠️ pyodbc module not found in any Python environment."
+        echo "   Installing pyodbc in backend virtual environment..."
+        
+        # Create backend venv if it doesn't exist
+        if [ ! -f "backend/venv/bin/python" ]; then
+            echo "🔄 Creating backend virtual environment..."
+            cd backend
+            python3 -m venv venv
+            cd ..
         fi
         
-        echo -n "."
-        sleep 2
-        
-        if [ $i -eq 60 ]; then
-            echo "❌ Timed out waiting for SQL Server to become healthy."
-            echo "   Please check logs with: docker logs $DB_CONTAINER_NAME"
-            exit 1
-        fi
-    done
-    cd ..
+        # Install pyodbc in backend venv
+        backend/venv/bin/pip install pyodbc
+        echo "✅ pyodbc installed in backend virtual environment"
+    fi
+    
+    # Install ODBC driver if the script exists
+    if [ -f "scripts/setup/db/install-odbc-driver.sh" ]; then
+        echo "🔄 Installing/updating ODBC Driver..."
+        ./scripts/setup/db/install-odbc-driver.sh --skip-test
+    fi
 else
-    echo "✅ Database container is already running"
+    echo "⚠️ ODBC driver installation script not found."
+    echo "   Manual driver installation may be required for direct database connections."
 fi
 
-# Execute SQL files in order
-echo "📜 Executing SQL scripts..."
-
-# Function to execute SQL files in a directory
-execute_sql_files() {
-    local dir=$1
-    local description=$2
-    
-    echo "📂 Processing $description files from $dir..."
-    
-    # Find all SQL files starting with digits
-    for file in $(find "database/$dir" -name "[0-9][0-9]-*.sql" | sort); do
-        local filename=$(basename "$file")
-        echo "📜 Executing: $filename"
-        
-        docker exec $DB_CONTAINER_NAME /opt/mssql-tools18/bin/sqlcmd \
-            -S localhost \
-            -U sa \
-            -P "$MSSQL_SA_PASSWORD" \
-            -C \
-            -i "/var/scripts/$dir/$filename" \
-            -v QLDSV_DB_NAME="$DB_NAME" \
-            -v QLDSV_APP_USER="$MSSQL_APP_USER" \
-            -v QLDSV_APP_PASSWORD="$MSSQL_APP_PASSWORD"
-        
-        if [ $? -eq 0 ]; then
-            echo "✅ $filename completed"
-        else
-            echo "❌ $filename failed"
-            return 1
-        fi
-    done
-}
-
-# Process foundation directory only (database creation and SA user setup)
-execute_sql_files "01-foundation" "Foundation"
-
-# Check database health
-echo "🏥 Checking database health..."
-./scripts/utils/db/db-health-check.sh
-
-echo "✅ [setup-database.sh] Database setup completed successfully!"
-echo "💡 Note: Only foundation scripts were executed. The database is ready for further configuration."
-echo "💡 The SQL Server SA password is: $MSSQL_SA_PASSWORD"
-echo "💡 Connect using:"
-echo "   - Host: localhost"
-echo "   - Port: $DB_PORT"
-echo "   - Username: sa"
-echo "   - Password: $MSSQL_SA_PASSWORD" 
+echo "✅ Database setup complete!"
+echo ""
+echo "🚀 To start the database, run: ./scripts/start-database.sh" 

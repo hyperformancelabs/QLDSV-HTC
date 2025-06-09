@@ -49,3 +49,4 @@ sentry-sdk[fastapi]>=1.32.0
 # Optional: Excel/CSV handling
 openpyxl>=3.1.0
 pandas>=2.1.0
+pydantic-settings>=2.0.0

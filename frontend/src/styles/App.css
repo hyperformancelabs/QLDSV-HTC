@@ -1,0 +1,234 @@
+/* App Container */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Header */
+.app-header {
+  padding: 2rem 0;
+  text-align: center;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.app-header h1 {
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+.app-header p {
+  color: var(--text-light);
+}
+
+/* Main Content */
+.app-content {
+  flex: 1;
+  padding: 2rem 0;
+}
+
+/* Health Status Section */
+.health-status {
+  background-color: var(--white);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.health-status h2 {
+  margin-bottom: 1.5rem;
+  color: var(--primary-dark);
+  border-bottom: 1px solid var(--primary-light);
+  padding-bottom: 0.5rem;
+}
+
+/* API Info Section */
+.api-info {
+  background-color: var(--primary-light);
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.api-info p {
+  margin: 0;
+  font-family: monospace;
+  font-weight: bold;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-light);
+}
+
+.error {
+  background-color: #ffebee;
+  border-left: 4px solid var(--error-color);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.error h3 {
+  color: var(--error-color);
+  margin-bottom: 0.5rem;
+}
+
+/* Response Details */
+.response-details {
+  margin-top: 1rem;
+  background-color: #333;
+  color: #fff;
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.response-details h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: #fff;
+}
+
+.response-details pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: monospace;
+}
+
+.status {
+  padding: 1.5rem;
+  border-radius: 4px;
+}
+
+.status.healthy {
+  background-color: #e8f5e9;
+  border-left: 4px solid var(--success-color);
+}
+
+.status.warning {
+  background-color: #fff3e0;
+  border-left: 4px solid #ff9800;
+}
+
+.status.unhealthy {
+  background-color: #ffebee;
+  border-left: 4px solid var(--error-color);
+}
+
+.status h3 {
+  margin-bottom: 1rem;
+}
+
+/* API Status Section */
+.api-status {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #e3f2fd;
+  border-radius: 4px;
+  border-left: 4px solid #2196f3;
+  margin-bottom: 1.5rem;
+}
+
+.api-status h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: #0d47a1;
+}
+
+.api-status p {
+  margin: 0;
+  color: #1976d2;
+}
+
+.database-status {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: rgba(255, 255, 255, 0.7);
+  border-radius: 4px;
+}
+
+.database-status h4 {
+  margin-bottom: 0.75rem;
+  color: var(--text-dark);
+}
+
+.success {
+  color: var(--success-color);
+  font-weight: 600;
+}
+
+.failure {
+  color: var(--error-color);
+  font-weight: 600;
+}
+
+.version {
+  margin-top: 0.5rem;
+  font-style: italic;
+  color: var(--text-light);
+}
+
+.error-message {
+  margin-top: 0.5rem;
+  color: var(--error-color);
+  font-family: monospace;
+  background-color: #fff;
+  padding: 0.5rem;
+  border-radius: 4px;
+  overflow-wrap: break-word;
+}
+
+/* Database Message & Solution */
+.database-message {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  background-color: #e0f7fa;
+  border-radius: 4px;
+  border-left: 3px solid #00bcd4;
+}
+
+.database-message p {
+  margin: 0;
+  color: #006064;
+}
+
+.solution {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  background-color: #f1f8e9;
+  border-radius: 4px;
+  border-left: 3px solid #8bc34a;
+}
+
+.solution h5 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: #33691e;
+}
+
+.solution p {
+  margin: 0;
+  color: #558b2f;
+}
+
+.no-data {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-light);
+  font-style: italic;
+}
+
+/* Footer */
+.app-footer {
+  padding: 1.5rem 0;
+  text-align: center;
+  color: var(--text-light);
+  border-top: 1px solid var(--border-color);
+  margin-top: auto;
+} 

@@ -11,7 +11,22 @@ check_root_dir || exit 1
 load_env_file
 
 # Parse arguments
-if [ "$1" == "--full-default-setup" ]; then
+FULL_SETUP=0
+
+for arg in "$@"; do
+    case $arg in
+        --full-default-setup)
+            FULL_SETUP=1
+            shift
+            ;;
+        *)
+            # Unknown option
+            ;;
+    esac
+done
+
+# Run full setup if requested
+if [ $FULL_SETUP -eq 1 ]; then
     echo "🔄 Running full default setup before starting frontend..."
     ./scripts/setup/fe/setup-frontend.sh --default
 fi
