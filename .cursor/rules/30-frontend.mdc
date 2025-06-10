@@ -1,10 +1,4 @@
----
-description: "React + TypeScript + Vite frontend guidelines và patterns cho QLDSV-HTC"
-globs: frontend/*
-alwaysApply: false
----
-
-# React Frontend Guidelines
+# React + TypeScript + Vite frontend guidelines và patterns cho QLDSV-HTC
 
 ## 🏗️ Architecture
 ```
@@ -28,6 +22,30 @@ alwaysApply: false
 3. **Manage state** → React Query (server), Context (global UI), local state
 4. **Test & debug** → UI testing trực tiếp, React DevTools
 
+## 🚀 Running the Frontend
+
+### Using Script Architecture (Recommended)
+```bash
+# Quick start với script architecture
+./scripts/start-frontend.sh
+
+# Start với full setup option
+./scripts/start-frontend.sh --full-default-setup
+```
+
+### Manual Execution
+```bash
+cd frontend
+npm install
+npm run dev    # Available at http://localhost:5173
+```
+
+### Debug Tools
+- Browser DevTools (F12):
+  - Console tab: logs & errors
+  - Network tab: API calls
+  - React DevTools: component tree & props
+
 ## 📝 Code Templates
 
 ### Environment Configuration (vite.config.ts)
@@ -49,6 +67,158 @@ export default defineConfig(({ mode }) => {
     },
   };
 });
+```
+
+### Health Check Component
+```tsx
+import React, { useEffect, useState } from 'react';
+import { Alert, Spin, Space, Typography, Button } from 'antd';
+import axios from 'axios';
+
+const { Text, Title } = Typography;
+
+interface HealthStatus {
+  status: 'healthy' | 'warning' | 'error';
+  message: string;
+  details?: {
+    database?: string;
+    api?: string;
+    odbc_driver?: string;
+  };
+}
+
+export const HealthCheck: React.FC = () => {
+  const [health, setHealth] = useState<HealthStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const checkHealth = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/health`);
+      setHealth(response.data);
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.code === 'ECONNREFUSED' || err.code === 'ERR_NETWORK') {
+          setHealth({
+            status: 'error',
+            message: 'Không thể kết nối đến API server.',
+            details: {
+              api: 'API server không hoạt động hoặc không thể truy cập.'
+            }
+          });
+        } else {
+          setError(`Lỗi khi kiểm tra health: ${err.message}`);
+        }
+      } else {
+        setError(`Lỗi không xác định: ${String(err)}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    checkHealth();
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '20px' }}>
+        <Spin tip="Đang kiểm tra trạng thái hệ thống..." />
+      </div>
+    );
+  }
+
+  const getAlertType = (status: string) => {
+    switch (status) {
+      case 'healthy': return 'success';
+      case 'warning': return 'warning';
+      case 'error': return 'error';
+      default: return 'info';
+    }
+  };
+
+  const renderDriverSolution = () => {
+    const message = health?.details?.odbc_driver;
+    if (message && message.includes('not installed')) {
+      return (
+        <div style={{ marginTop: '16px' }}>
+          <Title level={5}>Giải pháp cài đặt ODBC Driver:</Title>
+          <ul>
+            <li>
+              <Text>macOS: <code>brew install microsoft/mssql-release/msodbcsql18</code></Text>
+            </li>
+            <li>
+              <Text>Linux: Tham khảo <a href="https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server" target="_blank">hướng dẫn Microsoft</a></Text>
+            </li>
+          </ul>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <Space direction="vertical" style={{ width: '100%' }}>
+      {error ? (
+        <Alert
+          type="error"
+          message="Lỗi Kiểm Tra"
+          description={error}
+          showIcon
+        />
+      ) : health ? (
+        <>
+          <Alert
+            type={getAlertType(health.status) as any}
+            message={`Trạng thái Hệ thống: ${health.status === 'healthy' ? 'Khỏe mạnh' : health.status === 'warning' ? 'Cảnh báo' : 'Lỗi'}`}
+            description={health.message}
+            showIcon
+          />
+          
+          {health.details && (
+            <div style={{ marginTop: '16px' }}>
+              <Title level={5}>Chi tiết:</Title>
+              <ul>
+                {health.details.database && (
+                  <li>
+                    <Text>Database: {health.details.database}</Text>
+                  </li>
+                )}
+                {health.details.api && (
+                  <li>
+                    <Text>API: {health.details.api}</Text>
+                  </li>
+                )}
+                {health.details.odbc_driver && (
+                  <li>
+                    <Text>ODBC Driver: {health.details.odbc_driver}</Text>
+                  </li>
+                )}
+              </ul>
+              
+              {renderDriverSolution()}
+            </div>
+          )}
+        </>
+      ) : (
+        <Alert
+          type="warning"
+          message="Không có dữ liệu"
+          description="Không thể lấy thông tin trạng thái."
+          showIcon
+        />
+      )}
+      
+      <Button type="primary" onClick={checkHealth} loading={loading}>
+        Kiểm tra lại
+      </Button>
+    </Space>
+  );
+};
 ```
 
 ### Component with Ant Design + React Query
@@ -92,7 +262,7 @@ export const SinhVienTable: React.FC<SinhVienTableProps> = ({ maLop, onEdit }) =
 };
 ```
 
-### API Service
+### API Service with Error Handling
 ```typescript
 import axios, { AxiosError } from 'axios';
 import { SinhVien } from '../types/sinhVien';
@@ -101,6 +271,27 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: 10000,
 });
+
+// Add request interceptor for auth headers
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Add response interceptor for error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      // Redirect to login or refresh token
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const getSinhVienByLop = async (maLop: string): Promise<SinhVien[]> => {
   try {
@@ -112,12 +303,22 @@ export const getSinhVienByLop = async (maLop: string): Promise<SinhVien[]> => {
     throw new Error(axiosError.response?.data?.detail || 'Lỗi khi tải dữ liệu');
   }
 };
+
+export const checkHealth = async () => {
+  try {
+    const response = await axios.get(`${import.meta.env.VITE_API_URL}/health`);
+    return response.data;
+  } catch (error) {
+    console.error('Health check error:', error);
+    throw error;
+  }
+};
 ```
 
 ### Custom Hook
 ```typescript
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getSinhVienByLop, createSinhVien } from '../services/sinhVienService';
+import { getSinhVienByLop, createSinhVien, checkHealth } from '../services/sinhVienService';
 
 export const useSinhVienList = (maLop: string) => {
   return useQuery(['sinhVien', maLop], () => getSinhVienByLop(maLop), {
@@ -134,6 +335,14 @@ export const useCreateSinhVien = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries(['sinhVien', variables.maLop]);
     }
+  });
+};
+
+export const useHealthCheck = () => {
+  return useQuery(['health'], checkHealth, {
+    refetchInterval: 30000, // Check every 30 seconds
+    refetchOnWindowFocus: true,
+    retry: 1
   });
 };
 ```
@@ -165,18 +374,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 };
 ```
 
-## 🚀 Running & Debugging
-```bash
-cd frontend
-npm install
-npm run dev    # Available at http://localhost:5173
-
-# Debug với browser DevTools (F12):
-# - Console tab: logs & errors
-# - Network tab: API calls
-# - React DevTools: component tree & props
-```
-
 ## ❌ Anti-Patterns
 ```typescript
 // ❌ Wrong: Hardcode API URL
@@ -198,6 +395,13 @@ const { data } = useQuery(['users'], fetchUsers);
 const { data, error } = useQuery(['users'], fetchUsers, {
   onError: (error) => console.error('Error:', error)
 });
+
+// ❌ Wrong: Không kiểm tra health hoặc kết nối
+fetch("/api/data")
+
+// ✅ Right: Kiểm tra health và xử lý lỗi
+import { useHealthCheck } from '../hooks/useHealthCheck';
+const { data: health } = useHealthCheck();
 ```
 
 ## 📦 Core Dependencies (package.json)
@@ -226,5 +430,7 @@ const { data, error } = useQuery(['users'], fetchUsers, {
 - **Styling**: Ant Design components + responsive design
 - **Performance**: React.memo, useMemo, useCallback khi cần
 - **Accessibility**: Semantic HTML, ARIA attributes, keyboard navigation
+- **Error Handling**: Graceful degradation, user-friendly error messages
+- **Health Checks**: Kết nối tới API, kiểm tra database status, ODBC drivers
 
 Tham khảo CẢ BA dự án trong `@local/` để xem UI forms, state management patterns, và error handling.

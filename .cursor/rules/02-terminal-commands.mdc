@@ -1,8 +1,3 @@
----
-description: "Terminal Commands & Testing Workflow với new script architecture"
-globs: ["scripts/**/*.sh"]
-alwaysApply: true
----
 # Terminal Commands & Testing Workflow
 
 ## 🔧 Command Execution Rule
@@ -14,17 +9,15 @@ Khi cần chạy terminal command, PHẢI sử dụng format này và prioritize
 - LUÔN load environment trước khi chạy scripts
 - CHỈ sử dụng direct commands khi không có script utility
 
-### ✅ Examples với New Script Architecture
+### ✅ Examples với Script Architecture
 
 **Database operations:**
 ```json
 {
 "name": "run_terminal_cmd",
-"description": "Start database with comprehensive setup and health check",
 "parameters": {
 "command": "./scripts/start-database.sh --full-default-setup",
-"is_background": false,
-"require_user_approval": true
+"is_background": false
 }
 }
 ```
@@ -33,50 +26,53 @@ Khi cần chạy terminal command, PHẢI sử dụng format này và prioritize
 ```json
 {
 "name": "run_terminal_cmd",
-"description": "Start backend with auto-reload and debug logging",
 "parameters": {
 "command": "./scripts/start-backend.sh",
-"is_background": false,
-"require_user_approval": true
+"is_background": false
 }
 }
 ```
 
-**Environment validation:**
+**Frontend development:**
 ```json
 {
 "name": "run_terminal_cmd",
-"description": "Validate environment configuration using config loader",
 "parameters": {
-"command": "source scripts/utils/config-loader.sh && load_env_file && validate_global_config",
-"is_background": false,
-"require_user_approval": true
+"command": "./scripts/start-frontend.sh",
+"is_background": false
 }
 }
 ```
 
-**Database health monitoring:**
+**Backend với reset database:**
 ```json
 {
 "name": "run_terminal_cmd",
-"description": "Run comprehensive database health check with detailed report",
 "parameters": {
-"command": "./scripts/utils/db/db-health-check.sh",
-"is_background": false,
-"require_user_approval": true
+"command": "./scripts/start-backend.sh --reset-db",
+"is_background": false
 }
 }
 ```
 
-**Database lifecycle management:**
+**Direct database tools:**
 ```json
 {
 "name": "run_terminal_cmd",
-"description": "Reset database with user confirmation prompt",
 "parameters": {
-"command": "./scripts/utils/db/reset-db.sh",
-"is_background": false,
-"require_user_approval": true
+"command": "cd backend && source venv/bin/activate && python -m app.db.utils",
+"is_background": false
+}
+}
+```
+
+**ODBC driver check:**
+```json
+{
+"name": "run_terminal_cmd",
+"parameters": {
+"command": "cd backend && source venv/bin/activate && python -c \"import pyodbc; print(pyodbc.drivers())\"",
+"is_background": false
 }
 }
 ```
@@ -95,6 +91,7 @@ Khi testing bất cứ thứ gì, sử dụng loop:
 - Start server → check logs → fix errors → restart
 - Run database script → check output → fix SQL → re-run
 - Test API endpoint → analyze response → fix logic → re-test
+- Check database connection → analyze error → fix driver → re-test
 
 ## 📊 Debugging Priority
 1. **Terminal logs** - Primary source of truth
@@ -102,8 +99,9 @@ Khi testing bất cứ thứ gì, sử dụng loop:
 3. **Status codes** - HTTP/SQL/System response codes
 4. **Configuration** - Environment variables, settings
 5. **Dependencies** - Missing packages, services
+6. **Driver issues** - ODBC drivers, connectivity problems
 
 ## ❌ Anti-Patterns
-- ❌ Wrapper như `"type": "function"`
-- ❌ Markdown, text, explanation ngoài JSON
-- ❌ Thay đổi `is_background` hoặc `require_user_approval`
+- ❌ Không dùng wrapper như `"type": "function"`
+- ❌ Không thêm markdown, text, explanation ngoài JSON
+- ❌ Không thay đổi `is_background`, LUÔN để `false`

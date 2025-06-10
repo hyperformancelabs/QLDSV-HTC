@@ -87,7 +87,7 @@ if [ -f "scripts/setup/db/install-odbc-driver.sh" ]; then
             else
         echo "⚠️ pyodbc module not found in any Python environment."
         echo "   Installing pyodbc in backend virtual environment..."
-        
+    
         # Create backend venv if it doesn't exist
         if [ ! -f "backend/venv/bin/python" ]; then
             echo "🔄 Creating backend virtual environment..."
