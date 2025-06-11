@@ -440,6 +440,84 @@ class SQLExecutor:
 
         return sql_content
 
+    def detect_target_database(self, sql_content: str) -> str:
+        """
+        Detect target database from USE statement in SQL content.
+
+        Looks for patterns like:
+        - USE [$(DB_NAME)];
+        - USE [master];
+        - USE $(DB_NAME);
+        - USE master;
+
+        Args:
+            sql_content: SQL content to analyze
+
+        Returns:
+            Target database name ('master' or the configured database name)
+            If no USE statement found, returns the default database from settings
+        """
+        if not sql_content or not sql_content.strip():
+            return self.settings.DB_NAME
+
+        # Clean the content for analysis (remove comments, normalize whitespace)
+        cleaned_content = self._clean_sql_for_analysis(sql_content)
+
+        # Look for USE statements at the beginning of the file
+        # Pattern matches: USE [database_name]; or USE database_name;
+        use_pattern = r'^\s*USE\s+\[?([^\];\s]+)\]?\s*;'
+
+        match = re.search(use_pattern, cleaned_content,
+                          re.IGNORECASE | re.MULTILINE)
+
+        if match:
+            db_reference = match.group(1)
+
+            # Handle variable substitution
+            if db_reference == '$(DB_NAME)':
+                target_db = self.settings.DB_NAME
+                self.logger.debug(
+                    f"Found USE [$(DB_NAME)] - resolved to: {target_db}")
+                return target_db
+            elif db_reference.lower() == 'master':
+                self.logger.debug(
+                    "Found USE [master] - targeting master database")
+                return 'master'
+            else:
+                # Direct database name
+                self.logger.debug(
+                    f"Found USE [{db_reference}] - targeting: {db_reference}")
+                return db_reference
+
+        # No USE statement found, return default
+        self.logger.debug(
+            f"No USE statement found - using default database: {self.settings.DB_NAME}")
+        return self.settings.DB_NAME
+
+    def _clean_sql_for_analysis(self, sql_content: str) -> str:
+        """
+        Clean SQL content for analysis by removing comments and normalizing whitespace.
+
+        Args:
+            sql_content: Raw SQL content
+
+        Returns:
+            Cleaned SQL content suitable for pattern matching
+        """
+        if not sql_content:
+            return ""
+
+        # Remove single-line comments (-- style)
+        cleaned = re.sub(r'--.*$', '', sql_content, flags=re.MULTILINE)
+
+        # Remove multi-line comments (/* */ style)
+        cleaned = re.sub(r'/\*.*?\*/', '', cleaned, flags=re.DOTALL)
+
+        # Normalize whitespace
+        cleaned = re.sub(r'\s+', ' ', cleaned)
+
+        return cleaned.strip()
+
 
 # Global executor instance
 _executor = None
@@ -494,3 +572,16 @@ def execute_sql_file(sql_file: Union[str, Path], database: Optional[str] = None)
         Query result as string
     """
     return get_sql_executor()._execute_sql_file(Path(sql_file), database)
+
+
+def detect_target_database_from_sql(sql_content: str) -> str:
+    """
+    Detect target database from USE statement in SQL content.
+
+    Args:
+        sql_content: SQL content to analyze
+
+    Returns:
+        Target database name ('master' or configured database name)
+    """
+    return get_sql_executor().detect_target_database(sql_content)

@@ -3,6 +3,9 @@
 -- Creates the main QLDSV_HTC database with optimal settings
 -- =============================================
 
+USE [master];
+GO
+
 -- Make the script idempotent - handle existing database
 IF EXISTS (SELECT name FROM master.dbo.sysdatabases WHERE name = '$(DB_NAME)')
 BEGIN

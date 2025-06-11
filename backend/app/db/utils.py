@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 from app.core.config import get_settings
 from app.core.logger import setup_logger
-from app.db import execute_sql_query, execute_sql_file
+from app.db import execute_sql_query, execute_sql_file, detect_target_database_from_sql
 
 # Setup logger
 logger = setup_logger("db_utils")
@@ -16,8 +16,9 @@ def reset_database():
     Reset the database using multiple SQL scripts from all database directories.
 
     Database targeting strategy:
-    - Foundation, Schema, Security, Backup: Run on 'master' database (system-level operations)
-    - Data, Functions, Procedures, Views, Triggers: Run on target database (business logic)
+    - Detects target database from USE statement at the beginning of each SQL file
+    - USE [$(DB_NAME)] or USE [master] determines the target database
+    - If no USE statement found, defaults to using the configured database name
 
     Raises:
         FileNotFoundError: If database directory or SQL files not found
@@ -55,22 +56,6 @@ def reset_database():
 
         logger.info(f"Using database directory: {database_dir}")
 
-        # Define which directories should run on which database
-        master_database_dirs = [
-            "01-foundation",
-            "02-schema",
-            "03-security",
-            "04-backup"
-        ]
-
-        target_database_dirs = [
-            "05-data",
-            "06-functions",
-            "07-procedures",
-            "08-views",
-            "09-triggers"
-        ]
-
         # Process directories in numerical order
         all_dirs = sorted([d for d in database_dir.iterdir()
                           if d.is_dir() and d.name.startswith(('01-', '02-', '03-', '04-', '05-', '06-', '07-', '08-', '09-'))])
@@ -99,32 +84,21 @@ def reset_database():
 
             logger.info(f"Found {len(sql_files)} SQL files in {dir_name}")
 
-            # Determine target database
-            if dir_name in master_database_dirs:
-                target_db = "master"
-                logger.info(
-                    f"Directory {dir_name} will run on MASTER database")
-            elif dir_name in target_database_dirs:
-                target_db = settings.DB_NAME
-                logger.info(
-                    f"Directory {dir_name} will run on {settings.DB_NAME} database")
-            else:
-                # Fallback logic for any new directories
-                if dir_name.startswith(('01-', '02-', '03-', '04-')):
-                    target_db = "master"
-                    logger.info(
-                        f"Directory {dir_name} (fallback) will run on MASTER database")
-                else:
-                    target_db = settings.DB_NAME
-                    logger.info(
-                        f"Directory {dir_name} (fallback) will run on {settings.DB_NAME} database")
-
             # Execute each SQL file in the directory
             for sql_file in sql_files:
-                logger.info(
-                    f"Executing SQL file: {sql_file.name} on {target_db} database")
+                logger.info(f"Analyzing SQL file: {sql_file.name}")
 
                 try:
+                    # Read the SQL file to detect target database
+                    with open(sql_file, 'r', encoding='utf-8') as f:
+                        sql_content = f.read()
+
+                    # Detect target database from USE statement
+                    target_db = detect_target_database_from_sql(sql_content)
+
+                    logger.info(
+                        f"Executing SQL file: {sql_file.name} on {target_db} database")
+
                     result = execute_sql_file(sql_file, database=target_db)
                     logger.info(
                         f"Successfully executed {sql_file.name} on {target_db} database")
@@ -136,8 +110,7 @@ def reset_database():
                             f"Result from {sql_file.name}: {result[:200]}...")
 
                 except Exception as e:
-                    logger.error(
-                        f"Error executing {sql_file.name} on {target_db}: {e}")
+                    logger.error(f"Error executing {sql_file.name}: {e}")
                     raise
 
         logger.info(

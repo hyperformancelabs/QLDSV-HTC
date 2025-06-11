@@ -4,6 +4,9 @@
 -- Based on QLDSV-HTC requirements: PGV, KHOA, SV roles
 -- =============================================
 
+USE [master];
+GO
+
 -- Create main application user if it doesn't exist
 PRINT 'Setting up main application login...'
 
