@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 from functools import lru_cache
 from dotenv import load_dotenv
 import platform
+import secrets
 
 # Load environment variables WITH interpolation support
 load_dotenv(override=True)
@@ -53,11 +54,18 @@ class Settings:  # noqa: R0903
     PROJECT_VERSION: str = _get_env("PROJECT_VERSION", "1.0.0")
     PROJECT_DESCRIPTION: str = "API for QLDSV-HTC (Quản lý điểm sinh viên hệ tín chỉ)"
 
+    # API CONFIGURATION
+    API_PREFIX: str = _get_env("API_PREFIX", "/api/v1")
+    AUTH_PREFIX: str = _get_env("AUTH_PREFIX", "/auth")
+    SESSION_MAX_AGE: int = int(_get_env("SESSION_MAX_AGE", "3600"))
+    SESSION_SECRET: str = _get_env("SESSION_SECRET", secrets.token_hex(32))
+
     # DATABASE CORE CONFIG
     DB_HOST: str = _get_env("DB_HOST", "localhost")
     DB_PORT: str = _get_env("DB_PORT", "1434")
     DB_NAME: str = _get_env("DB_NAME", "QLDSV_HTC")
     DB_CONTAINER_NAME: str = _get_env("DB_CONTAINER_NAME", "qldsv-sqlserver")
+    DB_DEFAULT_USER: str = _get_env("DB_DEFAULT_USER", "app_user")
 
     # CREDENTIALS (required)
     MSSQL_SA_PASSWORD: str = _get_env("MSSQL_SA_PASSWORD", required=True)
@@ -82,6 +90,12 @@ class Settings:  # noqa: R0903
     # API / PLATFORM
     CORS_ORIGINS: list = ["*"]
     IS_MACOS: bool = platform.system() == "Darwin"
+
+    # DEVELOPMENT / FALLBACK SETTINGS
+    ENABLE_TEACHER_FALLBACK_AUTH: bool = _get_env(
+        "ENABLE_TEACHER_FALLBACK_AUTH", "true").lower() == "true"
+    DEVELOPMENT_MODE: bool = _get_env(
+        "DEVELOPMENT_MODE", "true").lower() == "true"
 
     def __post_init__(self):
         # Build connection strings after variables exist

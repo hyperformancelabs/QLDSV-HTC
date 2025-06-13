@@ -12,6 +12,7 @@ load_env_file
 
 # Parse arguments
 FULL_SETUP=0
+RESET_DB=0
 
 for arg in "$@"; do
     case $arg in
@@ -19,11 +20,26 @@ for arg in "$@"; do
             FULL_SETUP=1
             shift
             ;;
+        --reset-db)
+            RESET_DB=1
+            shift
+            ;;
         *)
             # Unknown option
             ;;
     esac
 done
+
+# Reset database if requested
+if [ $RESET_DB -eq 1 ]; then
+    echo "🔄 Resetting database..."
+    if [ -f "scripts/utils/db/delete-db.sh" ]; then
+        ./scripts/utils/db/delete-db.sh --force
+    else
+        echo "⚠️ Database delete script not found. Cannot reset database."
+        exit 1
+    fi
+fi
 
 # Run full setup if requested
 if [ $FULL_SETUP -eq 1 ]; then
@@ -124,4 +140,5 @@ echo "   - Port: $DB_PORT"
 echo "   - Database: $DB_NAME"
 echo ""
 echo "🔍 To check database status, run: ./scripts/utils/db/db-health-check.sh"
-echo "🔧 For full setup with ODBC, run: ./scripts/start-database.sh --full-default-setup" 
+echo "🔧 For full setup with ODBC, run: ./scripts/start-database.sh --full-default-setup"
+echo "🔄 To reset database completely, run: ./scripts/start-database.sh --reset-db" 

@@ -188,3 +188,8 @@ Thumbs.db
 
 # backup
 *.bak
+
+# cookie
+*cookies.txt
+
+# 

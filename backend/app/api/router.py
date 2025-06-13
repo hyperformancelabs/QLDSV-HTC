@@ -1,12 +1,24 @@
-from fastapi import APIRouter
-from app.api.endpoints import health, system
+"""
+API router for QLDSV-HTC
+"""
 
-# Main API Router
+from fastapi import APIRouter
+from app.api.endpoints import auth, health, student, system, teacher
+from app.core.config import get_settings
+
+# Get settings
+settings = get_settings()
+
+# Create main API router
 api_router = APIRouter()
 
 # Include all endpoint routers
 api_router.include_router(health.router, tags=["health"])
 api_router.include_router(system.router, tags=["system"])
+api_router.include_router(student.router, prefix="/student", tags=["student"])
+api_router.include_router(teacher.router, prefix="/teacher", tags=["teacher"])
+api_router.include_router(
+    auth.router, prefix=settings.AUTH_PREFIX, tags=["auth"])
 
 # Add more endpoint routers as needed
 # api_router.include_router(students.router, prefix="/students", tags=["students"])

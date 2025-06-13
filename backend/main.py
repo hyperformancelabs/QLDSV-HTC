@@ -6,8 +6,10 @@ QLDSV-HTC API - Main application entry point
 import os
 import sys
 import argparse
+import secrets
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
 # Import application components
 from app.api.router import api_router
@@ -37,8 +39,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API router
-app.include_router(api_router)
+# Add session middleware for authentication
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SESSION_SECRET,
+    max_age=settings.SESSION_MAX_AGE,
+)
+
+# Include API router with prefix
+app.include_router(api_router, prefix=settings.API_PREFIX)
 
 
 def parse_args():
