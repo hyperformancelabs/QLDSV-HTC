@@ -42,13 +42,14 @@ class SQLExecutor:
         self.settings = settings
         self.logger = logger
 
-    def execute_sql(self, sql_input: Union[str, Path], database: Optional[str] = None) -> str:
+    def execute_sql(self, sql_input: Union[str, Path], database: Optional[str] = None, user_type: Optional[str] = None) -> str:
         """
         Execute SQL query or file with automatic method selection.
 
         Args:
             sql_input: SQL query string or Path to SQL file
             database: Optional database name to connect to. If None, uses default from .env
+            user_type: Optional user type ('sa', 'app_user', 'pgv_user', 'khoa_user', 'sv_user'). Defaults to 'sa'
 
         Returns:
             Query result as string
@@ -61,18 +62,28 @@ class SQLExecutor:
 
         if isinstance(sql_input, (str, Path)) and Path(sql_input).exists():
             # It's a file path
-            return self._execute_sql_file(Path(sql_input), target_database)
+            return self._execute_sql_file(Path(sql_input), target_database, user_type)
         else:
             # It's a query string
-            return self._execute_sql_query(str(sql_input), target_database)
+            return self._execute_sql_query(str(sql_input), target_database, user_type)
 
-    def _execute_sql_query(self, sql_query: str, database: Optional[str] = None) -> str:
-        """Execute SQL query string using the best available method."""
+    def _execute_sql_query(self, sql_query: str, database: Optional[str] = None, user_type: Optional[str] = None) -> str:
+        """
+        Execute SQL query string using the best available method.
+
+        Args:
+            sql_query: SQL query to execute
+            database: Optional database name to connect to. If None, uses default from .env
+            user_type: Optional user type ('sa', 'app_user', 'pgv_user', 'khoa_user', 'sv_user'). Defaults to 'sa'
+
+        Returns:
+            Query result as string
+        """
         # Use default database from settings if none specified
         target_database = database or self.settings.DB_NAME
 
         self.logger.debug(
-            f"Executing SQL query in database: {target_database}")
+            f"Executing SQL query in database: {target_database} as user: {user_type or 'sa'}")
 
         # Normalize SQL content before execution
         normalized_sql = self._normalize_sql(sql_query)
@@ -80,21 +91,21 @@ class SQLExecutor:
         # On macOS, prefer Docker exec method
         if self.settings.IS_MACOS:
             try:
-                return self._execute_via_docker(normalized_sql, target_database)
+                return self._execute_via_docker(normalized_sql, target_database, user_type=user_type)
             except Exception as e:
                 self.logger.warning(
                     f"Docker exec failed on macOS, trying ODBC fallback: {e}")
-                return self._execute_via_odbc(normalized_sql, target_database)
+                return self._execute_via_odbc(normalized_sql, target_database, user_type=user_type)
         else:
             # On other platforms, try ODBC first, fallback to Docker
             try:
-                return self._execute_via_odbc(normalized_sql, target_database)
+                return self._execute_via_odbc(normalized_sql, target_database, user_type=user_type)
             except Exception as e:
                 self.logger.warning(
                     f"ODBC failed, trying Docker exec fallback: {e}")
-                return self._execute_via_docker(normalized_sql, target_database)
+                return self._execute_via_docker(normalized_sql, target_database, user_type=user_type)
 
-    def _execute_sql_file(self, sql_file: Path, database: Optional[str] = None) -> str:
+    def _execute_sql_file(self, sql_file: Path, database: Optional[str] = None, user_type: Optional[str] = None) -> str:
         """Execute SQL file using the best available method."""
         if not sql_file.exists():
             raise FileNotFoundError(f"SQL file not found: {sql_file}")
@@ -103,7 +114,7 @@ class SQLExecutor:
         target_database = database or self.settings.DB_NAME
 
         self.logger.info(
-            f"Executing SQL file: {sql_file.name} in database: {target_database}")
+            f"Executing SQL file: {sql_file.name} in database: {target_database} as user: {user_type or 'sa'}")
 
         # Read the SQL file
         with open(sql_file, 'r', encoding='utf-8') as f:
@@ -118,19 +129,19 @@ class SQLExecutor:
         # On macOS, prefer Docker exec with file method
         if self.settings.IS_MACOS:
             try:
-                return self._execute_file_via_docker(sql_file, normalized_sql, target_database)
+                return self._execute_file_via_docker(sql_file, normalized_sql, target_database, user_type=user_type)
             except Exception as e:
                 self.logger.warning(
                     f"Docker file exec failed on macOS, trying ODBC fallback: {e}")
-                return self._execute_via_odbc(normalized_sql, target_database)
+                return self._execute_via_odbc(normalized_sql, target_database, user_type=user_type)
         else:
             # On other platforms, try ODBC first, fallback to Docker
             try:
-                return self._execute_via_odbc(normalized_sql, target_database)
+                return self._execute_via_odbc(normalized_sql, target_database, user_type=user_type)
             except Exception as e:
                 self.logger.warning(
                     f"ODBC failed, trying Docker file exec fallback: {e}")
-                return self._execute_file_via_docker(sql_file, normalized_sql, target_database)
+                return self._execute_file_via_docker(sql_file, normalized_sql, target_database, user_type=user_type)
 
     def _normalize_sql(self, sql_content: str) -> str:
         """
@@ -206,16 +217,18 @@ class SQLExecutor:
         self.logger.debug(f"Split SQL into {len(cleaned_batches)} batches")
         return cleaned_batches
 
-    def _execute_via_docker(self, sql_query: str, database: Optional[str] = None, timeout: int = 30) -> str:
+    def _execute_via_docker(self, sql_query: str, database: Optional[str] = None, timeout: int = 30, user_type: Optional[str] = None) -> str:
         """Execute SQL query using Docker exec method."""
         try:
             # Use default database if none specified
             target_database = database or self.settings.DB_NAME
 
+            # Get user credentials based on user_type
+            username, password = self._get_user_credentials(user_type)
+
             db_param = f"-d {target_database}" if target_database else ""
             container_name = self.settings.DB_CONTAINER_NAME
-            password = self.settings.MSSQL_SA_PASSWORD.replace(
-                "'", "'\\''")  # Escape quotes
+            escaped_password = password.replace("'", "'\\''")  # Escape quotes
 
             # Docker exec handles GO statements natively via sqlcmd
             # Escape double quotes in SQL query
@@ -223,11 +236,12 @@ class SQLExecutor:
 
             cmd = (
                 f"docker exec -i {container_name} /opt/mssql-tools18/bin/sqlcmd "
-                f"-S localhost -U sa -P '{password}' -C {db_param} "
+                f"-S localhost -U {username} -P '{escaped_password}' -C {db_param} "
                 f"-Q \"{escaped_query}\" -h-1 -s\",\" -W -w 999 -t {timeout}"
             )
 
-            self.logger.debug(f"Docker exec command: {cmd}")
+            self.logger.debug(
+                f"Docker exec command for user {username} targeting database {target_database}")
 
             result = subprocess.run(
                 cmd, shell=True, capture_output=True, text=True)
@@ -237,21 +251,24 @@ class SQLExecutor:
                 self.logger.error(error_msg)
                 raise Exception(error_msg)
 
-            self.logger.debug("Docker exec SQL execution successful")
+            self.logger.debug(
+                f"Docker exec SQL execution successful for user {username}")
             return result.stdout.strip()
 
         except Exception as e:
             self.logger.error(f"Error in Docker exec method: {e}")
             raise
 
-    def _execute_file_via_docker(self, sql_file: Path, sql_content: str, database: Optional[str] = None) -> str:
+    def _execute_file_via_docker(self, sql_file: Path, sql_content: str, database: Optional[str] = None, user_type: Optional[str] = None) -> str:
         """Execute SQL file using Docker exec method with temporary file."""
         try:
             # Use default database if none specified
             target_database = database or self.settings.DB_NAME
 
+            # Get user credentials based on user_type
+            username, password = self._get_user_credentials(user_type)
+
             container_name = self.settings.DB_CONTAINER_NAME
-            password = self.settings.MSSQL_SA_PASSWORD
             temp_file = f"/tmp/{sql_file.name}"
 
             # Docker exec handles GO statements natively via sqlcmd
@@ -269,7 +286,7 @@ class SQLExecutor:
             db_param = f"-d {target_database}" if target_database else ""
             exec_cmd = (
                 f"docker exec {container_name} /opt/mssql-tools18/bin/sqlcmd "
-                f"-S localhost -U sa -P '{password}' -C {db_param} -i {temp_file}"
+                f"-S localhost -U {username} -P '{password}' -C {db_param} -i {temp_file}"
             )
 
             exec_result = subprocess.run(
@@ -284,14 +301,14 @@ class SQLExecutor:
                     f"SQL file execution failed: {exec_result.stderr}")
 
             self.logger.info(
-                f"Successfully executed {sql_file.name} via Docker")
+                f"Successfully executed {sql_file.name} via Docker for user {username}")
             return exec_result.stdout.strip()
 
         except Exception as e:
             self.logger.error(f"Error in Docker file exec method: {e}")
             raise
 
-    def _execute_via_odbc(self, sql_content: str, database: Optional[str] = None) -> str:
+    def _execute_via_odbc(self, sql_content: str, database: Optional[str] = None, user_type: Optional[str] = None) -> str:
         """
         Execute SQL content using ODBC connection with GO batch handling.
 
@@ -302,22 +319,25 @@ class SQLExecutor:
             # Use default database if none specified
             target_database = database or self.settings.DB_NAME
 
-            # Choose connection string based on database parameter
-            if target_database:
-                conn_str = (
-                    f"DRIVER={{ODBC Driver 18 for SQL Server}};"
-                    f"SERVER={self.settings.DB_HOST},{self.settings.DB_PORT};"
-                    f"DATABASE={target_database};"
-                    f"UID=sa;"
-                    f"PWD={self.settings.MSSQL_SA_PASSWORD};"
-                    f"TrustServerCertificate=yes;"
-                    f"Connection Timeout=30;"
-                )
-            else:
-                conn_str = self.settings.SA_ODBC_CONNECTION_STRING
+            # Get user credentials based on user_type
+            username, password = self._get_user_credentials(user_type)
+
+            # Build connection string with appropriate credentials
+            conn_str = (
+                f"DRIVER={{ODBC Driver 18 for SQL Server}};"
+                f"SERVER={self.settings.DB_HOST},{self.settings.DB_PORT};"
+                f"DATABASE={target_database};"
+                f"UID={username};"
+                f"PWD={password};"
+                f"TrustServerCertificate=yes;"
+                f"Connection Timeout=30;"
+                f"Encrypt=yes;"
+            )
 
             self.logger.debug(
-                f"Connecting via ODBC to database: {target_database}")
+                f"Connecting via ODBC to database: {target_database} as user: {username}")
+            self.logger.debug(
+                f"Connection string (without password): DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={self.settings.DB_HOST},{self.settings.DB_PORT};DATABASE={target_database};UID={username};TrustServerCertificate=yes;Connection Timeout=30;Encrypt=yes;")
 
             # Split SQL into batches by GO statements
             sql_batches = self._split_sql_batches(sql_content)
@@ -326,7 +346,21 @@ class SQLExecutor:
                 self.logger.warning("No SQL batches found to execute")
                 return "No SQL statements to execute"
 
-            conn = pyodbc.connect(conn_str)
+            try:
+                conn = pyodbc.connect(conn_str)
+                self.logger.debug(
+                    f"ODBC connection established successfully for {username}")
+            except pyodbc.Error as conn_error:
+                self.logger.error(
+                    f"Failed to establish ODBC connection: {conn_error}")
+                if "timeout" in str(conn_error).lower():
+                    self.logger.error(
+                        f"Connection timeout detected. Verify SQL Server is running and accessible at {self.settings.DB_HOST}:{self.settings.DB_PORT}")
+                elif "password" in str(conn_error).lower() or "login" in str(conn_error).lower():
+                    self.logger.error(
+                        f"Authentication failed for user {username}. Verify credentials.")
+                raise Exception(f"ODBC connection failed: {str(conn_error)}")
+
             cursor = conn.cursor()
 
             all_results = []
@@ -518,6 +552,30 @@ class SQLExecutor:
 
         return cleaned.strip()
 
+    def _get_user_credentials(self, user_type: Optional[str] = None) -> tuple:
+        """
+        Get the appropriate username and password based on user_type.
+        If user_type is custom (not predefined), attempt to read env var MSSQL_<USERNAME>_PASSWORD.
+        """
+        if user_type is None or user_type == 'sa':
+            return 'sa', self.settings.MSSQL_SA_PASSWORD
+        elif user_type == 'app_user':
+            return self.settings.MSSQL_APP_USER, self.settings.MSSQL_APP_PASSWORD
+        elif user_type == 'pgv_user':
+            return self.settings.MSSQL_PGV_USER, self.settings.MSSQL_PGV_PASSWORD
+        elif user_type == 'khoa_user':
+            return self.settings.MSSQL_KHOA_USER, self.settings.MSSQL_KHOA_PASSWORD
+        elif user_type == 'sv_user':
+            return self.settings.MSSQL_SV_USER, self.settings.MSSQL_SV_PASSWORD
+        else:
+            # Assume user_type is the actual username
+            dynamic_password = self.settings.get_dynamic_password(user_type)
+            if dynamic_password:
+                return user_type, dynamic_password
+            self.logger.error(
+                f"No credentials found for dynamic user '{user_type}'. Ensure environment variable MSSQL_{user_type.upper()}_PASSWORD is set.")
+            raise ValueError(f"Missing credentials for user: {user_type}")
+
 
 # Global executor instance
 _executor = None
@@ -532,46 +590,49 @@ def get_sql_executor() -> SQLExecutor:
 
 
 # Convenience functions for backward compatibility and ease of use
-def execute_sql(sql_input: Union[str, Path], database: Optional[str] = None) -> str:
+def execute_sql(sql_input: Union[str, Path], database: Optional[str] = None, user_type: Optional[str] = None) -> str:
     """
     Execute SQL query or file.
 
     Args:
         sql_input: SQL query string or Path to SQL file
         database: Optional database name to connect to. If None, uses default from .env (QLDSV_HTC)
+        user_type: Optional user type ('sa', 'app_user', 'pgv_user', 'khoa_user', 'sv_user'). Defaults to 'sa'
 
     Returns:
         Query result as string
     """
-    return get_sql_executor().execute_sql(sql_input, database)
+    return get_sql_executor().execute_sql(sql_input, database, user_type)
 
 
-def execute_sql_query(sql_query: str, database: Optional[str] = None) -> str:
+def execute_sql_query(sql_query: str, database: Optional[str] = None, user_type: Optional[str] = None) -> str:
     """
     Execute SQL query string.
 
     Args:
         sql_query: SQL query to execute
         database: Optional database name to connect to. If None, uses default from .env (QLDSV_HTC)
+        user_type: Optional user type ('sa', 'app_user', 'pgv_user', 'khoa_user', 'sv_user'). Defaults to 'sa'
 
     Returns:
         Query result as string
     """
-    return get_sql_executor()._execute_sql_query(sql_query, database)
+    return get_sql_executor()._execute_sql_query(sql_query, database, user_type)
 
 
-def execute_sql_file(sql_file: Union[str, Path], database: Optional[str] = None) -> str:
+def execute_sql_file(sql_file: Union[str, Path], database: Optional[str] = None, user_type: Optional[str] = None) -> str:
     """
     Execute SQL file.
 
     Args:
         sql_file: Path to SQL file
         database: Optional database name to connect to. If None, uses default from .env (QLDSV_HTC)
+        user_type: Optional user type ('sa', 'app_user', 'pgv_user', 'khoa_user', 'sv_user'). Defaults to 'sa'
 
     Returns:
         Query result as string
     """
-    return get_sql_executor()._execute_sql_file(Path(sql_file), database)
+    return get_sql_executor()._execute_sql_file(Path(sql_file), database, user_type)
 
 
 def detect_target_database_from_sql(sql_content: str) -> str:
