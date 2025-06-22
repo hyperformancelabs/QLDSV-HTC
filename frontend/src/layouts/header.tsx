@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Menu, Bell, Sun, Moon, ChevronDown, LogOut, User, Settings, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/use-auth-store';
+import * as authService from '@/services/authService';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { UserRole } from '@/types';
 import { APP_NAME } from '@/lib/config';
+import { toast } from '@/components/ui/use-toast';
 
 interface HeaderProps {
   sidebarOpen: boolean;
@@ -32,9 +34,20 @@ export function Header({ sidebarOpen, onOpenChange }: HeaderProps) {
     document.documentElement.classList.toggle('dark', newTheme === 'dark');
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } catch (err) {
+      // ignore network error, proceed client-side
+      /* empty */
+    } finally {
+      toast.success({
+        title: 'Đăng xuất thành công',
+        description: 'Hẹn gặp lại!' 
+      });
+      logout();
+      setTimeout(() => navigate('/login'), 300);
+    }
   };
 
   const getRoleLabel = (role: UserRole) => {
@@ -119,16 +132,16 @@ export function Header({ sidebarOpen, onOpenChange }: HeaderProps) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/profile')}>
+              <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
                 <User className="mr-2 h-4 w-4" />
                 <span>Hồ sơ cá nhân</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/settings')}>
+              <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer">
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Cài đặt</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Đăng xuất</span>
               </DropdownMenuItem>

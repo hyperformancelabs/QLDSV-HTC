@@ -7,14 +7,6 @@
 USE [$(DB_NAME)];
 GO
 
--- Sau khi trở lại DB ứng dụng, xóa USER nếu tồn tại.
-
-IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'GV002')
-BEGIN
-    DROP USER [GV002];
-END
-GO
-
 -- Xóa login và user cũ nếu tồn tại
 -- Xóa user trước, sau đó xóa login
 IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'GV001')
@@ -23,15 +15,22 @@ BEGIN
 END
 GO
 
--- Phải thực thi DROP/CREATE LOGIN ở cấp độ server (master)
-USE [master];
+IF EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'GV001_LOGIN')
+BEGIN
+    DROP LOGIN [GV001_LOGIN];
+END
 GO
 
--- (Không DROP LOGIN để tránh lỗi trên một số bản SQL Server Linux)
+IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'GV002')
+BEGIN
+    DROP USER [GV002];
+END
 GO
 
--- Trở lại database ứng dụng
-USE [$(DB_NAME)];
+IF EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'GV002_LOGIN')
+BEGIN
+    DROP LOGIN [GV002_LOGIN];
+END
 GO
 
 -- Tạo tài khoản cho GV001 (Nguyễn Duy Phương) với role PGV

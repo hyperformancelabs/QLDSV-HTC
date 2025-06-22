@@ -43,6 +43,9 @@ async def login(request: Request, payload: LoginRequest):
 
 @router.post("/logout", summary="Đăng xuất")
 async def logout(request: Request):
+    user = request.session.get(SESSION_KEY)
+    if user:
+        logger.info("User '%s' logged out", user.get("username"))
     request.session.pop(SESSION_KEY, None)
     return JSONResponse({"message": "Đăng xuất thành công"})
 

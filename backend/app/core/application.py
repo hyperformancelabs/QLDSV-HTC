@@ -23,9 +23,27 @@ def create_app() -> FastAPI:
     )
 
     # Configure CORS
-    # Get CORS settings from environment variables or use defaults
-    cors_origins = os.environ.get("CORS_ORIGINS", "*")
-    origins = [origin.strip() for origin in cors_origins.split(",")]
+    # Get CORS settings from environment variables or use sensible defaults.
+    # Using wildcard "*" together with `allow_credentials=True` is **not**
+    # allowed by the CORS specification and will cause browsers to block the
+    # response.  If no explicit origins are provided we therefore fallback to
+    # the default dev front-end address instead of "*".
+
+    cors_origins_env = os.environ.get("CORS_ORIGINS")  # comma-separated list
+    if cors_origins_env:
+        origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+    else:
+        # Default to Vite dev server in development mode (single port)
+        origins = ["http://localhost:5173"]
+
+    # Warn developers when the configuration is potentially unsafe / invalid
+    if "*" in origins:
+        app_logger.warning(
+            "Wildcard '*' detected in CORS_ORIGINS while allow_credentials=True. "
+            "This is disallowed by browsers and will lead to failed requests. "
+            "Please specify explicit origins, e.g. 'http://localhost:5173'."
+        )
+        origins = [o for o in origins if o != "*"]
 
     app.add_middleware(
         CORSMiddleware,
