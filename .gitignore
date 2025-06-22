@@ -179,6 +179,7 @@ Thumbs.db
 
 # Local
 *local/
+*temp*
 
 # VSCode
 .vscode/
@@ -192,4 +193,11 @@ Thumbs.db
 # cookie
 *cookies.txt
 
-# 
+# Ignore local environment overrides
+*.env.local
+
+# Ignore prebuild
+database/prebuild/
+
+# Ignore related
+related/

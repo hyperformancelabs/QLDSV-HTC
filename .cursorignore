@@ -1,7 +1,5 @@
-!*.env
-!*local/
-!*local/Other/
-!*local/QLDSV_TC/
-!*local/Other/HQT-CSDL/
-!*local/Other/TracNghiem_Distributed-Database_INT1414/
-!*local/Other/database-demo/
+!*.env*
+!related/
+!database/prebuild/
+!*logs/
+!temp.py

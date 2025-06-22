@@ -1,0 +1,109 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# UI Development Guidelines
+
+*(React + TypeScript + Vite for QLDSV-HTC)*
+
+## 🏗️ Project Architecture
+
+```
+frontend/
+├── .env                  # Local environment config (git-ignored)
+├── .env.example          # Template for environment variables
+├── index.html            # Base HTML template
+├── public/               # Static assets (favicon, etc.)
+│   └── favicon.svg
+├── src/                  # Source code (React 18 + TypeScript)
+│   ├── assets/           # Images, fonts, SVGs…
+│   ├── components/       # Reusable components
+│   │   └── ui/           # Base UI components from Shadcn
+│   ├── hooks/            # Custom React hooks
+│   ├── layouts/          # App layout (header, sidebar…)
+│   ├── pages/            # Page components (routed)
+│   ├── services/         # API logic (axios, react-query…)
+│   ├── store/            # Global state (Zustand slices)
+│   ├── styles/           # Tailwind layers, theme tokens
+│   ├── types/            # TypeScript interfaces, enums, helpers
+│   ├── utils/            # Pure functions and utilities
+│   ├── App.tsx           # Routing logic & auth guards
+│   └── main.tsx          # ReactDOM mount point
+├── package.json          # Project scripts & dependencies
+├── vite.config.ts        # Vite configuration
+├── tailwind.config.js    # Tailwind CSS configuration
+├── postcss.config.js     # PostCSS plugins
+├── tsconfig.json         # TypeScript config (app)
+├── tsconfig.node.json    # TypeScript config (node tools)
+├── components.json       # shadcn/ui component configuration
+└── README.md             # Detail information
+```
+
+## 🔧 Development Workflow
+
+1. **Define purpose and structure:**
+
+   * Identify the feature scope and determine the target directory:
+
+     * `src/components/` for reusable parts
+     * `src/pages/` for route-level components
+
+2. **Research:**
+
+   * Review `@DESCRIPTION.md` to understand business logic and data flow.
+   * Refer to implementations across all three sample projects in `@related/`.
+   * Check existing UI and component design patterns in the current codebase.
+
+3. **Design & Planning:**
+
+   * Follow **Atomic Design** principles:
+
+     * Atoms → Molecules → Organisms → Pages
+   * Plan component structure and expected props/state before implementation.
+
+4. **Implementation:**
+
+   * Create a new `.tsx` or `.jsx` file using consistent naming conventions.
+   * Build the component using React and Tailwind CSS.
+   * Leverage shared design tokens and utility classes.
+   * Manage state appropriately:
+
+     * **React Query** for server state
+     * **Context API** for global UI state
+     * **Local state** for component-scoped behavior
+
+   * **Integrate the component** into its parent component or route-level page.
+
+5. **Testing & Validation:**
+
+   * Cd to `@frontend/` then Run:
+     * `npm run lint` → Linting and formatting
+     * `npm run build` → Ensure build success
+     * `npm run dev` → Start dev server and test in browser
+   * Use React DevTools to inspect and debug state/props.
+   * Perform visual inspection and functional testing.
+   * *Tip:* View logs from the running background server using:
+
+     * `tail frontend/logs/server.log`
+     * Or for a specific number of lines: `tail -n N frontend/logs/server.log`
+
+6. **Self-review:**
+
+   * Verify:
+
+     * Visual consistency with existing UI
+     * Accessibility (semantic HTML, keyboard nav, etc.)
+     * Code quality: no hard-coded values, reusable logic, clean structure
+   * If issues are found, iterate and repeat the testing cycle.
+
+7. **Update related documentation if needed:**
+
+   * Only update if the code changes render the documentation outdated.
+   * Possible files to update:
+
+     * `.env` and `.env.example`
+     * `requirements.txt`
+     * Any README files: `@README.md`, `@backend/README.md`, `@frontend/README.md`, `@database/README.md`
+
+8. **Suggest a commit message summarizing the changes.**

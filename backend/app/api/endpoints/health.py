@@ -1,367 +1,152 @@
-import pyodbc
-import subprocess
+"""Health check endpoints."""
+
+import logging
+import os
 from fastapi import APIRouter, HTTPException
-from app.core.config import get_settings
-from app.core.logger import setup_logger
-from app.db import execute_sql_query
+from typing import Dict, Any
 
-# Setup router
+from app.db.connection import check_db_health, get_connection, normalize_driver_name
+from app.core.config import APP_SETTINGS
+
 router = APIRouter()
-
-# Setup logger
-logger = setup_logger("api.health")
-
-# Get settings
-settings = get_settings()
+logger = logging.getLogger("app.api.health")
 
 
-@router.get("/health")
-async def health_check():
+def get_connection_info() -> Dict[str, str]:
+    """Return standardized connection info for responses."""
+    return {
+        "host": f"{APP_SETTINGS.DB_HOST}:{APP_SETTINGS.DB_PORT}",
+        "driver": normalize_driver_name(APP_SETTINGS.DB_DRIVER),
+        "user": "sa"
+    }
+
+
+@router.get("/health", summary="Health check", tags=["Health"])
+async def health_check() -> Dict[str, Any]:
     """
-    Health check endpoint that verifies database connectivity.
+    Check the health of the application and its dependencies.
 
     Returns:
-        dict: Health status information
+        Dict[str, Any]: Health status of the application and its components
     """
-    # Try using the unified SQL executor with default SA user
+    logger.info(
+        f"DB Connection settings - HOST: {APP_SETTINGS.DB_HOST}, PORT: {APP_SETTINGS.DB_PORT}, DRIVER: {APP_SETTINGS.DB_DRIVER}")
+
+    app_status = {"status": "healthy", "message": "Application is running"}
+
+    # Check database health
+    db_status = check_db_health()
+
+    # Determine overall status
+    overall_status = "healthy" if db_status["status"] == "healthy" else "unhealthy"
+
+    if overall_status == "unhealthy":
+        logger.warning(f"Health check failed: {db_status['message']}")
+
+    return {
+        "status": overall_status,
+        "application": app_status,
+        "database": db_status
+    }
+
+
+@router.get("/health/db", summary="Database health check", tags=["Health"])
+async def db_health_check() -> Dict[str, Any]:
+    """
+    Check the health of the database connection.
+
+    Returns:
+        Dict[str, Any]: Health status of the database connection
+    """
+    db_status = check_db_health()
+
+    if db_status["status"] == "unhealthy":
+        logger.warning(f"Database health check failed: {db_status['message']}")
+        raise HTTPException(status_code=503, detail=db_status)
+
+    return db_status
+
+
+@router.get("/health/db/detailed", summary="Detailed database health check", tags=["Health"])
+async def detailed_db_health_check() -> Dict[str, Any]:
+    """
+    Perform a detailed health check of the database.
+
+    Returns:
+        Dict[str, Any]: Detailed health status of the database
+    """
     try:
-        version = execute_sql_query("SELECT @@VERSION")
+        # Log connection settings for debugging
+        logger.info(
+            f"DB Connection settings (detailed) - HOST: {APP_SETTINGS.DB_HOST}, PORT: {APP_SETTINGS.DB_PORT}, DRIVER: {APP_SETTINGS.DB_DRIVER}")
+
+        conn = get_connection("master")
+        cursor = conn.cursor()
+
+        # Basic database information
+        cursor.execute("SELECT @@VERSION AS version")
+        version = cursor.fetchone()[0]
+
+        # Get database sizes
+        cursor.execute("""
+            SELECT 
+                DB_NAME(database_id) AS database_name,
+                CAST(SUM(size) * 8 / 1024.0 AS DECIMAL(10, 2)) AS size_mb
+            FROM sys.master_files
+            GROUP BY database_id
+            ORDER BY database_name
+        """)
+        db_sizes = [{"name": row[0], "size_mb": row[1]}
+                    for row in cursor.fetchall()]
+
+        # Check QLDSV_HTC tables
+        cursor.execute("SELECT DB_NAME() AS current_db")
+        current_db = cursor.fetchone()[0]
+
+        # Switch to QLDSV_HTC database if not already there
+        db_name = APP_SETTINGS.DB_NAME
+        if current_db != db_name:
+            conn.close()
+            conn = get_connection(db_name)
+            cursor = conn.cursor()
+
+        # Get table counts
+        cursor.execute("""
+            SELECT 
+                t.name AS table_name,
+                p.rows AS row_count
+            FROM sys.tables t
+            INNER JOIN sys.indexes i ON t.object_id = i.object_id
+            INNER JOIN sys.partitions p ON i.object_id = p.object_id AND i.index_id = p.index_id
+            WHERE i.index_id < 2  -- Only clustered index or heap
+            ORDER BY t.name
+        """)
+        tables = [{"name": row[0], "row_count": row[1]}
+                  for row in cursor.fetchall()]
+
+        # Get stored procedures
+        cursor.execute("""
+            SELECT name 
+            FROM sys.procedures
+            ORDER BY name
+        """)
+        procedures = [row[0] for row in cursor.fetchall()]
+
+        conn.close()
 
         return {
             "status": "healthy",
-            "database": {
-                "connected": True,
-                "version": version,
-                "connection_method": "unified_executor",
-                "user": "sa"
-            },
-            "note": "Using unified SQL executor with automatic method selection"
+            "message": "Database connection successful",
+            "version": version,
+            "databases": db_sizes,
+            "tables": tables,
+            "procedures": procedures,
+            "connection": get_connection_info()
         }
     except Exception as e:
-        logger.error(f"Health check via SA user failed: {e}")
-        error_str = str(e)
-
-        # Check if the error is related to missing ODBC driver
-        if "Can't open lib 'ODBC Driver 18 for SQL Server'" in error_str:
-            return {
-                "status": "warning",
-                "database": {
-                    "connected": False,
-                    "error": str(e),
-                    "message": "ODBC Driver not found. This is expected on macOS development environments. The app can still function for frontend development.",
-                    "solution": "For full backend functionality, either install the ODBC driver or use Docker for database operations."
-                },
-                "api": {
-                    "status": "available",
-                    "message": "API endpoints are available for frontend development"
-                }
-            }
-        # Check for timeout issues
-        elif "timeout" in error_str.lower() or "HYT00" in error_str:
-            # Try with PGV user as backup
-            try:
-                pgv_version = execute_sql_query(
-                    "SELECT @@VERSION", user_type="pgv_user")
-                return {
-                    "status": "healthy",
-                    "database": {
-                        "connected": True,
-                        "version": pgv_version,
-                        "connection_method": "unified_executor",
-                        "user": "pgv_user",
-                        "note": "SA connection failed, but connected with PGV user"
-                    }
-                }
-            except Exception as pgv_error:
-                return {
-                    "status": "warning",
-                    "database": {
-                        "connected": False,
-                        "error": str(e),
-                        "message": "Connection timeout. The SQL Server is either not running or not accessible.",
-                        "solution": "Make sure the SQL Server container is running and accessible at the configured host and port."
-                    },
-                    "api": {
-                        "status": "available",
-                        "message": "API endpoints are available for frontend development"
-                    }
-                }
-
+        logger.error(f"Detailed database health check failed: {str(e)}")
         return {
             "status": "unhealthy",
-            "database": {
-                "connected": False,
-                "error": str(e)
-            }
+            "message": f"Database detailed check failed: {str(e)}",
+            "connection": get_connection_info()
         }
-
-
-@router.get("/test-sa-connection")
-async def test_sa_connection():
-    """
-    Test connection as sa user.
-
-    Returns:
-        dict: Connection status information
-    """
-    try:
-        # Use the unified executor - it will automatically choose the best method
-        version = execute_sql_query("SELECT @@VERSION", user_type="sa")
-
-        return {
-            "status": "success",
-            "message": "Successfully connected as SA user via unified executor",
-            "version": version
-        }
-    except Exception as e:
-        logger.error(f"SA connection test via unified executor failed: {e}")
-        return {
-            "status": "error",
-            "message": f"Failed to connect as SA user via unified executor: {str(e)}"
-        }
-
-
-@router.get("/test-app-user-connection")
-async def test_app_user_connection():
-    """
-    Test connection as application user.
-
-    Returns:
-        dict: Connection status information
-    """
-    try:
-        # Use the unified executor with app_user credentials
-        version = execute_sql_query("SELECT @@VERSION", user_type="app_user")
-
-        return {
-            "status": "success",
-            "message": "Successfully connected as application user via unified executor",
-            "version": version
-        }
-    except Exception as e:
-        logger.error(
-            f"App user connection test via unified executor failed: {e}")
-        return {
-            "status": "error",
-            "message": f"Failed to connect as application user via unified executor: {str(e)}"
-        }
-
-
-@router.get("/test-pgv-connection")
-async def test_pgv_connection():
-    """
-    Test connection as PGV (Phòng Giáo Vụ) user.
-
-    Returns:
-        dict: Connection status information
-    """
-    try:
-        # Use the unified executor with pgv_user credentials
-        version = execute_sql_query("SELECT @@VERSION", user_type="pgv_user")
-
-        return {
-            "status": "success",
-            "message": "Successfully connected as PGV user via unified executor",
-            "version": version
-        }
-    except Exception as e:
-        logger.error(
-            f"PGV user connection test via unified executor failed: {e}")
-        return {
-            "status": "error",
-            "message": f"Failed to connect as PGV user via unified executor: {str(e)}"
-        }
-
-
-@router.get("/test-khoa-connection")
-async def test_khoa_connection():
-    """
-    Test connection as Khoa user.
-
-    Returns:
-        dict: Connection status information
-    """
-    try:
-        # Use the unified executor with khoa_user credentials
-        version = execute_sql_query("SELECT @@VERSION", user_type="khoa_user")
-
-        return {
-            "status": "success",
-            "message": "Successfully connected as Khoa user via unified executor",
-            "version": version
-        }
-    except Exception as e:
-        logger.error(
-            f"Khoa user connection test via unified executor failed: {e}")
-        return {
-            "status": "error",
-            "message": f"Failed to connect as Khoa user via unified executor: {str(e)}"
-        }
-
-
-@router.get("/test-sv-connection")
-async def test_sv_connection():
-    """
-    Test connection as SV (Sinh Viên) user.
-
-    Returns:
-        dict: Connection status information
-    """
-    try:
-        # Use the unified executor with sv_user credentials
-        version = execute_sql_query("SELECT @@VERSION", user_type="sv_user")
-
-        return {
-            "status": "success",
-            "message": "Successfully connected as SV user via unified executor",
-            "version": version
-        }
-    except Exception as e:
-        logger.error(
-            f"SV user connection test via unified executor failed: {e}")
-        return {
-            "status": "error",
-            "message": f"Failed to connect as SV user via unified executor: {str(e)}"
-        }
-
-
-@router.get("/test-all-connections")
-async def test_all_connections():
-    """
-    Test connections for all user types with both connection methods.
-
-    Returns:
-        dict: Connection status information for all users
-    """
-    result = {
-        "status": "success",
-        "connections": {},
-        "config": {
-            "db_host": settings.DB_HOST,
-            "db_port": settings.DB_PORT,
-            "db_name": settings.DB_NAME,
-            "odbc_driver": "ODBC Driver 18 for SQL Server",
-            "is_macos": settings.IS_MACOS
-        },
-        "docker": {
-            "container_name": settings.DB_CONTAINER_NAME
-        }
-    }
-
-    # Test direct Docker SQL command to verify SQL Server is running
-    try:
-        cmd = f"docker exec -i {settings.DB_CONTAINER_NAME} /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '{settings.MSSQL_SA_PASSWORD}' -C -Q \"SELECT @@VERSION\""
-        docker_result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True)
-
-        if docker_result.returncode == 0:
-            result["docker"]["status"] = "running"
-            result["docker"]["version"] = docker_result.stdout.strip()
-        else:
-            result["docker"]["status"] = "error"
-            result["docker"]["error"] = docker_result.stderr.strip()
-    except Exception as e:
-        result["docker"]["status"] = "error"
-        result["docker"]["error"] = str(e)
-
-    # List of users to test
-    users = [
-        {"type": "sa", "name": "sa", "password": settings.MSSQL_SA_PASSWORD},
-        {"type": "app_user", "name": settings.MSSQL_APP_USER,
-            "password": settings.MSSQL_APP_PASSWORD},
-        {"type": "pgv_user", "name": settings.MSSQL_PGV_USER,
-            "password": settings.MSSQL_PGV_PASSWORD},
-        {"type": "khoa_user", "name": settings.MSSQL_KHOA_USER,
-            "password": settings.MSSQL_KHOA_PASSWORD},
-        {"type": "sv_user", "name": settings.MSSQL_SV_USER,
-            "password": settings.MSSQL_SV_PASSWORD}
-    ]
-
-    # Test each user
-    for user in users:
-        result["connections"][user["type"]] = {
-            "username": user["name"],
-            "methods": {}
-        }
-
-        # Test via unified executor
-        try:
-            unified_version = execute_sql_query(
-                "SELECT @@VERSION", user_type=user["type"])
-            result["connections"][user["type"]]["methods"]["unified"] = {
-                "status": "success",
-                "version": unified_version
-            }
-        except Exception as e:
-            result["connections"][user["type"]]["methods"]["unified"] = {
-                "status": "error",
-                "error": str(e)
-            }
-            result["status"] = "partial"
-
-        # Test direct Docker connection
-        try:
-            docker_cmd = f"docker exec -i {settings.DB_CONTAINER_NAME} /opt/mssql-tools18/bin/sqlcmd -S localhost -U {user['name']} -P '{user['password']}' -C -Q \"SELECT @@VERSION\""
-            docker_user_result = subprocess.run(
-                docker_cmd, shell=True, capture_output=True, text=True)
-
-            if docker_user_result.returncode == 0:
-                result["connections"][user["type"]]["methods"]["direct_docker"] = {
-                    "status": "success",
-                    "version": docker_user_result.stdout.strip()
-                }
-            else:
-                result["connections"][user["type"]]["methods"]["direct_docker"] = {
-                    "status": "error",
-                    "error": docker_user_result.stderr.strip()
-                }
-                result["status"] = "partial"
-        except Exception as e:
-            result["connections"][user["type"]]["methods"]["direct_docker"] = {
-                "status": "error",
-                "error": str(e)
-            }
-            result["status"] = "partial"
-
-        # Test direct ODBC connection (if not on macOS)
-        if not settings.IS_MACOS:
-            try:
-                # Build direct ODBC connection string
-                conn_str = (
-                    f"DRIVER={{ODBC Driver 18 for SQL Server}};"
-                    f"SERVER={settings.DB_HOST},{settings.DB_PORT};"
-                    f"DATABASE={settings.DB_NAME};"
-                    f"UID={user['name']};"
-                    f"PWD={user['password']};"
-                    f"TrustServerCertificate=yes;"
-                    f"Connection Timeout=30;"
-                    f"Encrypt=yes;"
-                )
-
-                # Test direct ODBC connection
-                conn = pyodbc.connect(conn_str)
-                cursor = conn.cursor()
-                cursor.execute("SELECT @@VERSION")
-                rows = cursor.fetchall()
-                direct_odbc_version = rows[0][0] if rows else "Unknown"
-                cursor.close()
-                conn.close()
-
-                result["connections"][user["type"]]["methods"]["direct_odbc"] = {
-                    "status": "success",
-                    "version": direct_odbc_version
-                }
-            except Exception as e:
-                result["connections"][user["type"]]["methods"]["direct_odbc"] = {
-                    "status": "error",
-                    "error": str(e)
-                }
-                result["status"] = "partial"
-
-    # Add final diagnostics
-    result["diagnostics"] = {
-        "working_users": [user for user in result["connections"] if result["connections"][user]["methods"]["unified"]["status"] == "success"],
-        "failing_users": [user for user in result["connections"] if result["connections"][user]["methods"]["unified"]["status"] == "error"],
-    }
-
-    return result

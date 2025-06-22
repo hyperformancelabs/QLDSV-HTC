@@ -9,8 +9,9 @@ export default defineConfig({
     port: 5173,
     host: true
   },
-  define: {
-    // Define environment variables explicitly
-    'import.meta.env.VITE_API_URL': JSON.stringify('http://localhost:8000')
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
   }
 })

@@ -1,0 +1,86 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Feature Development Guidelines
+
+## 🏗️ Project Architecture
+
+```
+@backend/
+├── .env                  # Backend-specific configuration
+├── .env.example          # Template for environment variables
+├── main.py               # Application entry point
+├── app/
+│   ├── api/
+│   │   ├── endpoints/        # Endpoint logic (user.py, auth.py, etc.)
+│   │   ├── dependencies/     # Shared dependencies (get_db, get_current_user, etc.)
+│   │   └── router.py         # Combine all routers and defines API routing under the prefix `/api/v1`
+│   ├── core/                 # config.py, logger.py, etc.
+│   ├── db/
+│   │   ├── connection.py     # pyodbc connection
+│   │   └── repositories/     # DB access functions
+│   ├── schemas/              # Pydantic models (request/response)
+│   ├── services/             # Business logic per domain
+│   └── utils/                # Common helper functions
+├── requirements.txt      # Python dependencies
+└── README.md             # Detail information
+```
+
+## 🔧 Development Workflow
+
+1. **Define the feature scope:**
+
+   * Determine the endpoint purpose, HTTP method, role-specific access (PGV, KHOA, or SV), and relevant business logic.
+
+2. **Research & analysis:**
+
+   * Read `@DESCRIPTION.md` to fully understand the project requirements and database structure.
+   * Refer to how similar logic is implemented across all three reference projects in `@related/`.
+   * Explore how similar features are structured in the current codebase to align with project coding style.
+
+3. **Planning:**
+
+   * Create a clear, step-by-step implementation plan. Break down complex tasks as needed.
+   * Follow a **bottom-up approach**:
+     * Pydantic Schema → Repository → Service Logic → API Endpoint → Router
+        > 1. **Pydantic Schema** - define request and response structures.
+        > 2. **Repository** - implement database queries using `pyodbc` and raw SQL.
+        > 3. **Service Logic** - implement business logic that calls repositories.
+        > 4. **API Endpoint** - use FastAPI to expose service via HTTP methods.
+        > 5. **Router** - group and register endpoints with appropriate prefixes and tags.
+   * Emphasize **SQL-centric solutions**: use UDFs, Stored Procedures, Views, Triggers, raw SQL, etc. Avoid using ORM.
+   * Address **security and error handling**:
+
+     * Implement proper role-based access control (PGV/KHOA/SV)
+     * Ensure robust input validation and exception handling
+   * Follow the existing coding style to maintain consistency and reusability across the project.
+
+4. **Implementation:**
+   * Build in the planned order: Schema → Repository → Service → API Endpoint:
+   Start by defining Pydantic Schemas → implement Repositories to interact with the database → create Service functions that use those repositories to apply business logic → finally, build API Endpoints that call the service and return results via the schemas.
+
+5. **Testing (Iterative Test Cycle):**
+
+   * Step 1: Start the backend using the bash script (`run_terminal_cmd` with `is_background=false`) and fix any runtime errors.
+   * Step 2: Use `curl` to test the API endpoints (note that all api is preconfig with `/api/v1`). Resolve any issues.
+   * Step 3: Perform a **self-review** for performance, security, and coding style. If issues are found, repeat the cycle.
+   * *Tip:* View logs from the running background server using:
+     * `tail backend/logs/server.log`
+     * Or for a specific number of lines: `tail -n N backend/logs/server.log`
+   * Users for testing:
+     * sv: `N21DCCN001` - `123456`
+     * pgv: `GV001_LOGIN` - `123456`
+     * khoa: `GV002_LOGIN` - `123456`
+
+6. **Update related documentation if needed:**
+
+   * Only update if the code changes render the documentation outdated.
+   * Possible files to update:
+
+     * `.env` and `.env.example`
+     * `requirements.txt`
+     * Any README files: `@README.md`, `@backend/README.md`, `@frontend/README.md`, `@database/README.md`
+
+7. **Suggest a commit message summarizing the changes.**

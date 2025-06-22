@@ -55,62 +55,6 @@ echo "🔄 Setting up database directory permissions..."
 chmod +x scripts/utils/db/*.sh 2>/dev/null || true
 chmod +x scripts/setup/db/install-odbc-driver.sh 2>/dev/null || true
 
-# Check if the ODBC driver installation script exists
-if [ -f "scripts/setup/db/install-odbc-driver.sh" ]; then
-    # Check if pyodbc can connect without errors
-    echo "🔍 Checking if ODBC driver is properly installed..."
-    
-    # Check if pyodbc can be imported in the project's virtual environment
-    PYODBC_CHECK="failed"
-    
-    # Try to import pyodbc from different locations
-    if [ -f "backend/venv/bin/python" ]; then
-        echo "🔍 Checking pyodbc in backend virtual environment..."
-        if backend/venv/bin/python -c "import pyodbc; print('SUCCESS')" 2>/dev/null; then
-            PYODBC_CHECK="backend_venv"
-        fi
-    elif [ -f "venv/bin/python" ]; then
-        echo "🔍 Checking pyodbc in root virtual environment..."
-        if venv/bin/python -c "import pyodbc; print('SUCCESS')" 2>/dev/null; then
-            PYODBC_CHECK="root_venv"
-        fi
-    elif python3 -c "import pyodbc" 2>/dev/null; then
-        echo "🔍 Checking pyodbc in system Python..."
-        PYODBC_CHECK="system"
-    fi
-    
-    if [ "$PYODBC_CHECK" != "failed" ]; then
-        echo "✅ pyodbc found in $PYODBC_CHECK environment"
-        # Skip connection test for now since database may not be running
-        echo "📝 ODBC driver check will be performed after database startup"
-
-            else
-        echo "⚠️ pyodbc module not found in any Python environment."
-        echo "   Installing pyodbc in backend virtual environment..."
-    
-        # Create backend venv if it doesn't exist
-        if [ ! -f "backend/venv/bin/python" ]; then
-            echo "🔄 Creating backend virtual environment..."
-            cd backend
-            python3 -m venv venv
-            cd ..
-        fi
-        
-        # Install pyodbc in backend venv
-        backend/venv/bin/pip install pyodbc
-        echo "✅ pyodbc installed in backend virtual environment"
-    fi
-    
-    # Install ODBC driver if the script exists
-    if [ -f "scripts/setup/db/install-odbc-driver.sh" ]; then
-        echo "🔄 Installing/updating ODBC Driver..."
-        ./scripts/setup/db/install-odbc-driver.sh --skip-test
-    fi
-else
-    echo "⚠️ ODBC driver installation script not found."
-    echo "   Manual driver installation may be required for direct database connections."
-fi
-
 echo "✅ Database setup complete!"
 echo ""
 echo "🚀 To start the database, run: ./scripts/start-database.sh" 

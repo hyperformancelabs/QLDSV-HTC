@@ -1,69 +1,78 @@
-import React, { useState, useEffect } from 'react';
-import { ConfigProvider, message } from 'antd';
-import viVN from 'antd/locale/vi_VN';
-import Login from './components/Login';
-import Dashboard from './components/Dashboard';
-import authService from './services/authService';
-import 'antd/dist/reset.css';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { MainLayout } from '@/layouts/main-layout';
+import LoginPage from '@/pages/login';
+import DashboardPage from '@/pages/dashboard';
+import HealthPage from '@/pages/health';
+import { Toaster } from '@/components/ui/toaster';
+
+// Demo placeholder pages
+const PlaceholderPage = ({ title }: { title: string }) => (
+  <div className="flex flex-col items-center justify-center py-12">
+    <h1 className="text-2xl font-bold mb-4">{title}</h1>
+    <p className="text-muted-foreground">
+      Trang này đang được phát triển. Đây là giao diện demo.
+    </p>
+  </div>
+);
 
 function App() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Check if user is already logged in
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
-  const checkAuthStatus = async () => {
-    try {
-      const currentUser = await authService.getCurrentUser();
-      setUser(currentUser);
-    } catch (error) {
-      console.log('No user logged in');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLoginSuccess = (userData: any) => {
-    setUser(userData);
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-  };
-
-  // Show loading screen while checking auth status
-  if (loading) {
-    return (
-      <div style={{
-        height: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-      }}>
-        <div style={{ textAlign: 'center', color: 'white' }}>
-          <div style={{ fontSize: '18px', marginBottom: '16px' }}>
-            Đang kiểm tra trạng thái đăng nhập...
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <ConfigProvider locale={viVN}>
-      <div className="App">
-        {user ? (
-          <Dashboard user={user} onLogout={handleLogout} />
-        ) : (
-          <Login onLoginSuccess={handleLoginSuccess} />
-        )}
-      </div>
-    </ConfigProvider>
+    <Router>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/health" element={<HealthPage />} />
+        
+        <Route element={<MainLayout />}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          
+          {/* Faculty management */}
+          <Route path="/faculties" element={<PlaceholderPage title="Quản lý khoa" />} />
+          
+          {/* Class management */}
+          <Route path="/classes" element={<PlaceholderPage title="Quản lý lớp" />} />
+          
+          {/* Student management */}
+          <Route path="/students" element={<PlaceholderPage title="Quản lý sinh viên" />} />
+          
+          {/* Teacher management */}
+          <Route path="/teachers" element={<PlaceholderPage title="Quản lý giảng viên" />} />
+          
+          {/* Subject management */}
+          <Route path="/subjects" element={<PlaceholderPage title="Quản lý môn học" />} />
+          
+          {/* Credit class management */}
+          <Route path="/credit-classes" element={<PlaceholderPage title="Quản lý lớp tín chỉ" />} />
+          
+          {/* Registration management */}
+          <Route path="/registrations" element={<PlaceholderPage title="Đăng ký lớp tín chỉ" />} />
+          
+          {/* Grade management */}
+          <Route path="/grades" element={<PlaceholderPage title="Quản lý điểm" />} />
+          
+          {/* Tuition management */}
+          <Route path="/tuition" element={<PlaceholderPage title="Quản lý học phí" />} />
+          
+          {/* Reports */}
+          <Route path="/reports" element={<PlaceholderPage title="Báo cáo thống kê" />} />
+          
+          {/* System management */}
+          <Route path="/system" element={<PlaceholderPage title="Quản lý hệ thống" />} />
+          
+          {/* Settings */}
+          <Route path="/settings" element={<PlaceholderPage title="Cài đặt" />} />
+          
+          {/* Profile */}
+          <Route path="/profile" element={<PlaceholderPage title="Hồ sơ cá nhân" />} />
+          
+          {/* 404 - Not Found */}
+          <Route path="*" element={<PlaceholderPage title="404 - Không tìm thấy trang" />} />
+        </Route>
+      </Routes>
+      
+      <Toaster />
+    </Router>
   );
 }
 
-export default App;
+export default App; 

@@ -11,12 +11,22 @@ check_root_dir || exit 1
 load_env_file
 
 # Parse arguments
-FULL_SETUP=0
+SETUP=0      # --setup  : run frontend setup before start
+RESET_FE=0   # --reset  : clean & reinstall node_modules before start
+DELETE_FE=0  # --delete : remove node_modules & logs then exit
 
 for arg in "$@"; do
     case $arg in
-        --full-default-setup)
-            FULL_SETUP=1
+        --setup)
+            SETUP=1
+            shift
+            ;;
+        --reset)
+            RESET_FE=1
+            shift
+            ;;
+        --delete)
+            DELETE_FE=1
             shift
             ;;
         *)
@@ -31,9 +41,26 @@ mkdir -p frontend/logs
 # Set log file path
 LOG_FILE="frontend/logs/server.log"
 
-# Run full setup if requested
-if [ $FULL_SETUP -eq 1 ]; then
-    echo "🔄 Running full default setup before starting frontend..." | tee -a "$LOG_FILE"
+# Remove old log file if it exists
+if [ -f "$LOG_FILE" ]; then
+    echo "🗑️ Removing old frontend log file..."
+    rm -f "$LOG_FILE"
+fi
+
+# Delete
+if [ $DELETE_FE -eq 1 ]; then
+    ./scripts/utils/fe/delete-frontend.sh | tee -a "$LOG_FILE"
+    exit 0
+fi
+
+# Reset dependencies
+if [ $RESET_FE -eq 1 ]; then
+    ./scripts/utils/fe/reset-frontend.sh | tee -a "$LOG_FILE"
+fi
+
+# Run setup if requested
+if [ $SETUP -eq 1 ]; then
+    echo "🔄 Running frontend setup..." | tee -a "$LOG_FILE"
     ./scripts/setup/fe/setup-frontend.sh --default 2>&1 | tee -a "$LOG_FILE"
 fi
 

@@ -1,0 +1,30 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Environment Config Guidelines
+
+
+## **Environment File Structure & Loading Strategy**
+
+```
+@/.env                     # ✅ Global shared configs (e.g. PORT, BASE_URL)
+@/.env.example            # 📄 Template for global configs (tracked in Git)
+
+@/backend/.env            # 🔧 Backend-specific configs (inherits some global ones)
+@/backend/.env.example    # 📄 Template for backend
+
+@/frontend/.env           # 🎨 Frontend-specific configs (e.g. VITE_*)
+@/frontend/.env.example   # 📄 Template for frontend
+
+@/database/.env           # 🛢️ Database-specific configs (e.g. DB credentials)
+@/database/.env.example   # 📄 Template for database
+```
+
+### **How It Works**
+
+* Each service (`backend`, `frontend`, `database`) **loads its own `.env` file**, while optionally **inheriting shared values from the root `.env`**.
+* `.env.example` files **document required environment variables** and are committed to version control for easy onboarding.
+
+* **No hardcoding allowed** — all configs must go through `.env` files, and every `.env` must have a matching `.env.example`.

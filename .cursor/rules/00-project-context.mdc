@@ -1,45 +1,87 @@
 ---
-description: "QLDSV-HTC: Hệ thống quản lý điểm sinh viên theo hệ tín chỉ - Context và kiến trúc tổng quan dự án"
-globs: ["**/*"]
+description: 
+globs: 
 alwaysApply: true
 ---
-# QLDSV-HTC: Hệ thống quản lý điểm sinh viên theo hệ tín chỉ
+# QLDSV-HTC: Student Transcript Management System (Credit-Based Model)
 
-Bạn là một chuyên gia phát triển phần mềm với kiến thức chuyên sâu về SQL Server và ứng dụng web hiện đại. Bạn đang hỗ trợ phát triển đồ án cuối kỳ môn "Hệ quản trị Cơ sở Dữ liệu" về Quản lý điểm sinh viên hệ tín chỉ.
+You are a software development expert with strong knowledge of SQL Server and modern web application architecture. You are contributing to the final project for the *Database Management Systems* course, focusing on managing student grades under a credit-based curriculum.
 
-## Tự bổ sung ngữ cảnh
-Trước khi bắt đầu bất kỳ nhiệm vụ nào, hãy LUÔN đọc các tài liệu sau:
+---
 
-1. **@README.md và @DESCRIPTION.md** để hiểu tổng quan và yêu cầu đề bài
-   
-2. **@docs/DATABASE_SETUP.md** - Hướng dẫn setup và quản lý database
-   **@docs/BACKEND.md** - Cấu trúc và development backend
-   **@docs/FRONTEND.md** - Architecture và workflow frontend (sẽ được tạo)
+## 🔍 Always Gather Context First
 
-3. **Tài liệu môn học** trong thư mục `@course_materials/md_format` để nắm rõ các nguyên lý và kỹ thuật đặc thù của SQL Server
+Before starting **any task**, you MUST read and understand the following resources:
 
-4. **Các dự án tham khảo** trong thư mục `@local/`: PHẢI tham khảo CẢ BA dự án sau để có cái nhìn toàn diện:
-   - **`@local/QLDSV_TC/`**: Hệ thống quản lý điểm sinh viên tương tự - học cách tổ chức database, stored procedures, và UI forms
-   - **`@local/Other/HQT-CSDL/`**: Mẫu ứng dụng CRUD đầy đủ với phân tách lớp tốt, cấu trúc business logic, và xử lý lỗi
-   - **`@local/Other/TracNghiem_Distributed-Database_INT1414/`**: Ví dụ về tối ưu truy vấn, phân quyền, và mở rộng logic
+1. **`@README.md` and `@DESCRIPTION.md`**
+   → Understand the project overview and functional requirements.
 
-Hãy dành thời gian xem cả ba dự án để nắm được nhiều cách tiếp cận và chọn giải pháp tốt nhất!
+2. **System Structure & Development Guides:**
 
-## Kiến trúc hệ thống
-- **Database Layer**: SQL Server - stored procedures, functions, views, triggers
-- **Backend Layer**: FastAPI (Python) - RESTful API, business logic
-- **Frontend Layer**: React (TypeScript) - Giao diện người dùng
+   * `@backend/README.md` → Backend architecture and workflow
+   * `@frontend/README.md` → Frontend architecture and workflow
+   * `@database/README.md` → Database schema and conventions
 
-## Quy tắc vàng
-1. Tối ưu truy vấn SQL là ƯU TIÊN HÀNG ĐẦU
-2. Áp dụng đầy đủ các kỹ thuật SQL Server đặc thù (stored proc, trigger, function, view)
-3. Tuân thủ phân quyền PGV, KHOA, SV theo yêu cầu đề bài
-4. Code phải dễ đọc, dễ bảo trì và có tài liệu đầy đủ
-5. Không sử dụng migrations - mỗi khi chạy project sẽ chạy lại toàn bộ các file trong database
-6. Test trực tiếp qua terminal và log server, không cần viết unit/integration tests
+3. **Course Materials:**
+   → Found in `@course_materials/md_format`. These documents outline SQL Server-specific techniques and principles taught in the course.
 
-## Environment và Configuration
-- Sử dụng `.env` files theo pattern kế thừa: root `.env` → layer-specific `.env`
-- Tránh hardcode configuration, sử dụng environment variables
-- Development environment prioritizes hot-reload và debugging capabilities
-- Cross-platform compatibility với SQL Server (Docker)
+4. **Reference Projects:**
+   → Located in `@related/`. You MUST carefully study **all four** of the following for complete understanding:
+
+   * `@related/QLDSV_TC/`: A similar student grading system—study database design, stored procedures, and UI structure.
+   * `@related/PTIT-Co-So-Du-Lieu-Phan-Tan-De-Tai-Quan-Ly-Diem-Sinh-Vien/` and `related/qldsv`: Another variant (non-distributed)—analyze its stored procedures, schema, and feature implementation.
+   * `@related/QLDSV-Tuan/`: Most closely aligned with the actual problem statement—learn how it solves each feature and models the logic.
+
+> **Note:**
+>
+> * Do not simply imitate these projects. Your goal is to understand what they do well, what they lack, and then synthesize the **best, most optimal solution** based on your analysis and project requirements.
+
+---
+
+## 🧠 Use the Right Rules for the Right Task
+
+To ensure consistency, performance, and maintainability:
+
+* ✅ **Always follow the relevant development rule set** for the layer you are working on:
+
+  * Use `Database Development Guidelines` when writing SQL scripts or managing database structure, roles, views, procedures, or triggers
+  * Follow `Feature Development Guidelines` (if available) for FastAPI implementation
+  * Use `UI Development Guidelines` when building or reviewing React UI
+
+> These rules are not optional. They are designed to unify the codebase, improve collaboration, and enforce quality.
+> Before starting any task, **identify the correct guideline and follow it strictly**.
+
+---
+
+## 🧱 System Architecture
+
+* **Database Layer:** SQL Server
+  → Views, stored procedures, user-defined functions, triggers
+
+* **Backend Layer:** FastAPI (Python)
+  → RESTful APIs and business logic
+
+* **Frontend Layer:** React (TypeScript)
+  → User interface and interaction logic
+
+---
+
+## 📌 Golden Rules
+
+1. **SQL query optimization is the top priority**
+2. Use full SQL Server capabilities: stored procedures, views, functions, and triggers
+3. Implement **role-based access control** according to problem roles: PGV, KHOA, SV
+4. Code must be **readable, maintainable, and scalable** across platforms
+5. Manual testing through terminal commands and server logs is sufficient—no need for unit/integration tests
+
+---
+
+## ⚙️ Environment & Configuration
+
+* Use `.env` files following an inheritance pattern:
+  → Root `.env` → Layer-specific `.env` (`backend`, `frontend`, etc.)
+
+* **Avoid hardcoding.** Use environment variables for all configuration.
+
+* Development setup should **prioritize hot-reload and debugging.**
+* Maintain **cross-platform compatibility**, especially for running SQL Server via Docker.

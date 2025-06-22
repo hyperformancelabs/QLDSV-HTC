@@ -1,14 +1,9 @@
--- =============================================
--- Database Configuration Script
--- Sets optimal database options for performance and compatibility
--- =============================================
+-- Configure database options for $(DB_NAME) database
 
--- Switch to the newly created database
-USE [$(DB_NAME)]
+USE [$(DB_NAME)];
+GO
 
-PRINT 'Setting database options...'
-
--- Set recommended database options for performance and ANSI compliance
+-- ANSI SQL compatibility and performance tuning
 ALTER DATABASE [$(DB_NAME)] SET ANSI_NULL_DEFAULT ON
 ALTER DATABASE [$(DB_NAME)] SET ANSI_NULLS ON
 ALTER DATABASE [$(DB_NAME)] SET ANSI_PADDING ON
@@ -18,9 +13,8 @@ ALTER DATABASE [$(DB_NAME)] SET CONCAT_NULL_YIELDS_NULL ON
 ALTER DATABASE [$(DB_NAME)] SET NUMERIC_ROUNDABORT OFF
 ALTER DATABASE [$(DB_NAME)] SET QUOTED_IDENTIFIER ON
 
--- Additional performance settings
+-- Enable automatic statistics management
 ALTER DATABASE [$(DB_NAME)] SET AUTO_CREATE_STATISTICS ON
 ALTER DATABASE [$(DB_NAME)] SET AUTO_UPDATE_STATISTICS ON
 ALTER DATABASE [$(DB_NAME)] SET AUTO_UPDATE_STATISTICS_ASYNC OFF
-
-PRINT 'Database options configured successfully.' 
+GO

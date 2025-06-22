@@ -1,74 +1,51 @@
-#!/usr/bin/env python3
-"""
-QLDSV-HTC API - Main application entry point
-"""
+"""Application entry point.
 
-import os
+This file is intentionally minimal. All heavy lifting is delegated to
+`app.core` modules to keep the bootstrap clean.
+"""
+import logging
 import sys
-import argparse
-import secrets
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.sessions import SessionMiddleware
+import uvicorn
 
-# Import application components
-from app.api.router import api_router
-from app.core.config import get_settings
-from app.core.logger import setup_logger
-from app.db.utils import reset_database
+from app.core.application import create_app
+from app.core.config import APP_SETTINGS, verify_cwd
+from app.utils.db_reset import reset_database
 
-# Setup logger
-logger = setup_logger("main")
-
-# Get settings
-settings = get_settings()
-
-# Create FastAPI app
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    description=settings.PROJECT_DESCRIPTION,
-    version=settings.PROJECT_VERSION
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler()
+    ]
 )
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Add session middleware for authentication
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=settings.SESSION_SECRET,
-    max_age=settings.SESSION_MAX_AGE,
-)
-
-# Include API router with prefix
-app.include_router(api_router, prefix=settings.API_PREFIX)
+logger = logging.getLogger("main")
 
 
-def parse_args():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="QLDSV-HTC Backend")
-    parser.add_argument("--reset-db", action="store_true",
-                        help="Reset the database before starting the server")
-    return parser.parse_args()
+# Verify working directory before doing anything else
+verify_cwd()
+
+# Check if reset-db flag is passed
+if "--reset-db" in sys.argv:
+    logger.info("Database reset requested via command line argument")
+    if reset_database():
+        logger.info("Database reset completed successfully")
+        # Exit if only resetting database was requested
+        if len(sys.argv) == 2:
+            sys.exit(0)
+    else:
+        logger.error("Database reset failed")
+        sys.exit(1)
+
+
+# Create the FastAPI application
+app = create_app()
 
 
 if __name__ == "__main__":
-    args = parse_args()
-
-    if args.reset_db:
-        try:
-            reset_database()
-        except Exception as e:
-            logger.error(f"Failed to reset database: {e}")
-            sys.exit(1)
-
-    # This block won't be reached when running with uvicorn
-    # It's here for documentation purposes
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "main:app",
+        host=APP_SETTINGS.APP_HOST,
+        port=APP_SETTINGS.APP_PORT,
+        reload=APP_SETTINGS.APP_RELOAD,
+    )

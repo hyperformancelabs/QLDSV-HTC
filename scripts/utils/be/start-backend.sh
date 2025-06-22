@@ -26,7 +26,7 @@ else
 fi
 
 # Check if dependencies are installed
-if ! pip show fastapi > /dev/null 2>&1; then
+if ! backend/venv/bin/pip show fastapi > /dev/null 2>&1; then
     echo "❌ Dependencies not installed. Please run setup-backend.sh first."
     exit 1
 fi
@@ -48,6 +48,9 @@ done
 # Create logs directory if it doesn't exist
 mkdir -p backend/logs
 
+# Store the full path to the Python interpreter before changing directory
+PYTHON_PATH=$(pwd)/backend/venv/bin/python
+
 # Change to backend directory
 cd backend
 
@@ -56,7 +59,7 @@ echo "🔄 Starting FastAPI backend..."
 
 if [ $RESET_DB -eq 1 ]; then
     echo "🔄 Resetting database before starting..."
-    python main.py --reset-db
+    $PYTHON_PATH main.py --reset-db
     echo "✅ Database reset completed"
 fi
 
@@ -78,10 +81,10 @@ else
     RELOAD_FLAG=""
 fi
 
-# Start uvicorn - using main.py at the backend root
-uvicorn main:app --host $BACKEND_HOST --port $BACKEND_PORT $DEBUG_FLAG $RELOAD_FLAG
+# Start uvicorn using explicit Python interpreter
+$PYTHON_PATH -m uvicorn main:app --host $BACKEND_HOST --port $BACKEND_PORT $DEBUG_FLAG $RELOAD_FLAG
 
 # Deactivate virtual environment
-deactivate
+# no deactivate needed when not sourcing, but we keep consistency
 
 echo "✅ [start-backend.sh] Backend started!" 

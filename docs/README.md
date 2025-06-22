@@ -1,91 +1,113 @@
-# QLDSV-HTC: Hệ thống quản lý điểm sinh viên theo hệ tín chỉ
+# QLDSV-HTC – Hệ Thống Quản Lý Điểm Sinh Viên Theo Hệ Tín Chỉ
 
-Đây là hệ thống quản lý điểm sinh viên theo hệ tín chỉ, được phát triển cho môn học "Hệ quản trị Cơ sở Dữ liệu". Hệ thống bao gồm các chức năng quản lý lớp học, sinh viên, môn học, lớp tín chỉ, đăng ký học phần và quản lý điểm.
+## 1. Giới Thiệu
 
-## Kiến trúc hệ thống
+QLDSV-HTC là đồ án môn **Hệ Quản Trị Cơ Sở Dữ Liệu** mô phỏng hệ thống quản lý điểm sinh viên với các vai trò **PGV (Phòng Giáo Vụ)**, **KHOA**, **GV (Giảng Viên)** và **SV (Sinh Viên)**. Dự án được triển khai theo kiến trúc **3 tầng**:
 
-Hệ thống được xây dựng với kiến trúc 3 tầng:
+1. **Database** – SQL Server 2022 (Docker) chứa toàn bộ T-SQL (DDL/DML/Stored Procedure).
+2. **Backend** – Python / FastAPI cung cấp RESTful API & bảo mật JWT/Session.
+3. **Frontend** – React 18 + Vite SPA với Zustand + Tailwind CSS.
 
-1. **Database Layer**: SQL Server - stored procedures, functions, views, triggers
-2. **Backend Layer**: FastAPI (Python) - RESTful API, business logic
-3. **Frontend Layer**: React (TypeScript) - Giao diện người dùng
+Hệ thống kèm bộ **bash scripts** để tự động hoá cài đặt, khởi chạy, reset dữ liệu và kiểm thử.
 
-## Yêu cầu hệ thống
+---
 
-- Docker và Docker Compose
-- Git
-- Python 3.9+ (cho phát triển backend)
-- Node.js 16+ (cho phát triển frontend)
+## 2. Cấu Trúc Thư Mục
 
-## Cài đặt và chạy
-
-### 1. Clone repository
-
-```bash
-git clone https://github.com/yourusername/QLDSV-HTC.git
-cd QLDSV-HTC
+```text
+QLDSV-HTC/
+├── backend/        # FastAPI – API, Logic, Service & Dependency
+├── database/       # T-SQL – Scripts Tạo DB, Bảng, Index, SP, View, Data
+├── frontend/       # React – SPA UI + Zustand store
+├── scripts/        # Bash helpers: start-backend.sh / start-database.sh / …
+├── docs/           # Tài liệu hướng dẫn (README này, ERD v.v.)
+└── DESCRIPTION.md  # Đề bài chính thức của đồ án
 ```
 
-### 2. Thiết lập môi trường
+Chi tiết từng tầng xem README tương ứng bên trong thư mục.
 
-Sao chép file môi trường mẫu và điều chỉnh nếu cần:
+---
 
-```bash
-cp .env.example .env
-```
+## 3. Công Nghệ Sử Dụng
 
-### 3. Thiết lập và chạy hệ thống
+| Tầng      | Công Nghệ Chính                       | Ghi Chú |
+|-----------|---------------------------------------|---------|
+| Database  | SQL Server 2022 (Docker)              | T-SQL, Stored Procedure, Function, Trigger, Index |
+| Backend   | Python ≥ 3.9, FastAPI, SQLAlchemy    | Async, pyodbc, JWT, Rate-Limit, Logger |
+| Frontend  | React 18, TypeScript, Vite            | Shadcn UI, React Hook Form + Zod, Zustand store |
+| DevOps    | Docker Compose, Bash Script           | `./scripts` tự động hoá cài đặt & khởi chạy |
 
-```bash
-# Thiết lập ban đầu
-./scripts/setup/db/setup-database.sh --default
-./scripts/setup/be/setup-backend.sh --default
-./scripts/setup/fe/setup-frontend.sh --default
+---
 
-# Hoặc khởi động nhanh với auto-setup
-./scripts/start-database.sh --full-default-setup
-./scripts/start-backend.sh --full-default-setup
-./scripts/start-frontend.sh --full-default-setup
-```
+## 4. Yêu Cầu Hệ Thống
 
-### 4. Truy cập ứng dụng
+* **Docker** & **docker-compose** ≥ v24
+* **Node.js** ≥ 18 và **pnpm** ≥ 8 (để cài gói front-end)
+* **Python** ≥ 3.9 (khuyến nghị 3.11)
+* macOS / Linux / Windows WSL2
 
-- **Database**: localhost:1434 (SQL Server)
-- **Backend API**: http://localhost:8000 (Docs: http://localhost:8000/docs)
-- **Frontend**: http://localhost:5173
+---
 
-### 5. Quản lý hệ thống
+## 5. Cài Đặt Nhanh
 
 ```bash
-# Kiểm tra sức khỏe database
-./scripts/utils/db/db-health-check.sh
+# 1. Clone repo
+$ git clone https://github.com/<your-org>/QLDSV-HTC.git
+$ cd QLDSV-HTC
 
-# Khởi động lại từng component
-./scripts/utils/db/restart-db.sh
-./scripts/start-backend.sh
-./scripts/start-frontend.sh
+# 2. Tạo file môi trường cho từng tầng
+$ cp .env.example .env
+$ cp backend/.env.example backend/.env
+$ cp frontend/.env.example frontend/.env.local
+$ cp database/.env.example database/.env
 
-# Reset database (với xác nhận)
-./scripts/utils/db/reset-db.sh
+# 3. Khởi chạy toàn bộ stack (DB → BackEnd → FrontEnd)
+$ ./scripts/start-database.sh --setup   # tạo container SQL Server + seed data
+$ ./scripts/start-backend.sh  --setup   # cài venv, package & start FastAPI
+$ ./scripts/start-frontend.sh --setup   # cài node_modules bằng pnpm & start Vite
 ```
 
-## Tài liệu chi tiết
+Sau khi hoàn tất:
 
-Để biết thêm thông tin chi tiết, vui lòng tham khảo các tài liệu sau:
+* Frontend: http://localhost:5173
+* OpenAPI Docs: http://localhost:8000/docs
+* Health Check: http://localhost:5173/health
 
-- [Đề bài chi tiết](DESCRIPTION.md)
-- [Tài liệu database](docs/DATABASE.md)
-- [Tài liệu backend](docs/BACKEND.md)
-- [Tài liệu frontend](docs/FRONTEND.md)
+---
 
-## Phân quyền
+## 6. Tài Khoản Demo
 
-Hệ thống có 3 nhóm người dùng chính:
+| Vai Trò | Username | Password |
+|---------|----------|----------|
+| PGV     | pgv_user | PGV@123456 |
+| KHOA    | khoa_user| KHOA@123456 |
+| GV (PGV)| GV045    | GV045pass123# |
+| SV      | N21DCCN064 | 123456 |
 
-1. **PGV (Phòng Giáo Vụ)**: Có toàn quyền trên hệ thống
-2. **Khoa**: Quản lý điểm của sinh viên thuộc khoa
-3. **SV (Sinh Viên)**: Đăng ký lớp tín chỉ, xem điểm
+---
 
-## Giấy phép
+## 7. Lộ Trình Phát Triển
 
-Xem file [LICENSE](LICENSE) để biết thêm chi tiết.
+1. **Thiết kế DB**: chỉnh sửa file `.sql` trong `database/`, sau đó `./scripts/start-backend.sh --reset-db` để áp dụng.
+2. **Xây dựng API**: thêm endpoint FastAPI ➜ `./scripts/start-backend.sh` (hot-reload).
+3. **Xây dựng giao diện**: `pnpm dev` hoặc `./scripts/start-frontend.sh`.
+4. **Viết test & CI**: bảo đảm unit test pass trước khi merge.
+
+---
+
+## 8. Chuẩn Mã Nguồn
+
+* **Python**: PEP-8 + typing đầy đủ.
+* **TypeScript**: ESLint + Prettier.
+* **T-SQL**: PascalCase cho tên đối tượng, snake_case cho cột.
+* Nguyên tắc **Clean Code**, **DRY**, **Single Responsibility** (xem `02-terminal-commands.mdc`).
+
+---
+
+## 9. Giấy Phép
+
+Mã nguồn phát hành dưới giấy phép **MIT**.
+
+---
+
+> © 2024 – Nhóm QLDSV-HTC – Trường Đại Học XYZ 

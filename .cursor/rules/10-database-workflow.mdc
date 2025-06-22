@@ -1,0 +1,130 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Database Development Guidelines
+
+*(SQL Server for QLDSV-HTC)*
+
+## 📁 Directory Structure
+
+```
+@database/
+├── .env               # Backend-specific configuration
+├── .env.example       # Template for environment variables
+├── 01-foundation/     # Database creation (DROP/CREATE)
+├── 02-schema/         # Tables & indexes
+├── 03-security/       # Logins, user, roles, permissions
+├── 04-backup/         # Backup configuration
+├── 05-functions/      # User-defined functions (UDF)
+├── 06-procedures/     # Stored procedures
+├── 07-views/          # Database views
+├── 08-triggers/       # Triggers for automation
+├── 09-data/           # Initial seed data
+├── backup/            # Backup files (optional)
+└── health/            # Health check scripts
+```
+
+## 🧠 Development Workflow
+
+1. **Read and research:**
+
+   * Understand the feature scope and logic requirements.
+
+   * Study the following documents and projects before coding:
+
+     * `@DESCRIPTION.md` – feature requirements and business logic
+     * Course materials in:
+
+       * `@course_materials/docx_format/lectures`
+       * `@course_materials/docx_format/extra`
+     * Reference projects in:
+
+       * `@related/QLDSV_TC/`
+       * `@related/qldsv/`
+       * `@related/PTIT-Co-So-Du-Lieu-Phan-Tan-De-Tai-Quan-Ly-Diem-Sinh-Vien/`
+       * `@related/QLDSV-Tuan/`
+
+   * **Follow the SQL coding style used in `@course_materials`** — especially naming, formatting, comment structure, and procedure layout.
+
+   > *Note:* Combine the strengths of reference projects with your own analysis. Do **not** copy—always strive to improve.
+
+2. **Plan your implementation:**
+
+   * Identify which scripts need to be added or updated:
+
+     * Tables, stored procedures, views, triggers, etc.
+   * Break complex logic into modular, testable parts (e.g., via UDFs or views)
+
+3. **Write SQL scripts:**
+
+   * Use **T-SQL** (latest SQL Server syntax)
+   * Scripts must be **idempotent** – always start with `IF EXISTS` + `DROP`
+   * Categorize scripts into the correct subfolders (`06-functions/`, `07-procedures/`, etc.)
+   * Implement business logic via:
+
+     * Stored procedures (`07-procedures/`)
+     * Views (`08-views/`)
+     * Triggers (`09-triggers/`)
+     * User-defined functions (`06-functions/`)
+
+4. **Security & Roles:**
+
+   * Define and assign permissions for:
+
+     * PGV, KHOA, SV
+   * Place all role, user, and grant logic in `03-security/`
+
+5. **Testing & Validation:**
+
+   * Run:
+
+     ```
+     ./scripts/start-backend.sh --reset-db
+     ```
+
+   * Create a test script (e.g., `temp.py`) using `pyodbc` to connect and verify:
+
+     * Schema structure
+     * Data constraints and logic
+     * Permission control
+     * Query performance and side effects
+
+6. **Self-review:**
+
+   * Verify:
+
+     * No use of `SELECT *`
+     * Prefer set-based logic (avoid cursors)
+     * Use proper indexes for performance
+     * Wrap multi-step logic in `BEGIN TRANSACTION` + `TRY...CATCH`
+     * Naming conventions are strictly followed
+   * Re-run all scripts to ensure **idempotency**
+
+7. **Update related documentation if needed:**
+
+   * Only update if the logic change affects docs or setup behavior
+   * Files to check:
+
+     * `.env` and `.env.example`
+     * `@README.md`
+     * `@database/README.md`
+     * `@backend/README.md` (if backend behavior is affected)
+
+8. **Suggest a commit message summarizing the changes.**
+
+---
+
+## 🏷️ Naming Conventions
+
+| Entity           | Pattern                       | Example                    |
+| ---------------- | ----------------------------- | -------------------------- |
+| **Tables**       | PascalCase (singular)         | `SinhVien`                 |
+| **Columns**      | PascalCase                    | `MaSinhVien`               |
+| **Primary Keys** | `PK_{Table}`                  | `PK_SinhVien`              |
+| **Foreign Keys** | `FK_{Child}_{Parent}`         | `FK_SinhVien_Lop`          |
+| **Procedures**   | `SP_{Entity}_{Action}`        | `SP_SinhVien_TimKiem`      |
+| **Functions**    | `FN_{Description}`            | `FN_TinhDiemTrungBinh`     |
+| **Triggers**     | `TR_{Table}_{Timing}{Action}` | `TR_SinhVien_AfterInsert`  |
+| **Views**        | `V_{Description}`             | `V_SinhVien_ThongTinDayDu` |

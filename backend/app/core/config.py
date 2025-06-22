@@ -1,134 +1,144 @@
+"""Application settings and environment loading."""
+
+from __future__ import annotations
+
 import os
+import sys
 import logging
-from typing import Dict, Any, Optional
-from functools import lru_cache
-from dotenv import load_dotenv
-import platform
-import secrets
+from pathlib import Path
+from typing import Set, Dict, Any, Optional
 
-# Load environment variables WITH interpolation support
-load_dotenv(override=True)
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("logs/app.log")
-    ]
-)
-
-logger = logging.getLogger(__name__)
-
-# Create logs directory if it doesn't exist
-os.makedirs("logs", exist_ok=True)
+logger = logging.getLogger("app.core.config")
 
 
-def _get_env(key: str, default: Optional[str] = None, required: bool = False) -> str:
-    """Helper lấy biến môi trường, cắt bỏ dấu ngoặc kép nếu có và kiểm tra tồn tại.
-
-    Args:
-        key (str): Tên biến môi trường
-        default (Optional[str]): Giá trị mặc định (nếu không yêu cầu)
-        required (bool): Nếu True, raise Exception nếu không tìm thấy
-
-    Returns:
-        str: Giá trị biến môi trường đã được strip bỏ dấu quote ngoài (nếu có)
-    """
-    val = os.getenv(key, default)
-
-    if required and (val is None or val == ""):
-        raise EnvironmentError(f"Missing required environment variable: {key}")
-
-    if val and len(val) >= 2 and ((val.startswith("'") and val.endswith("'")) or (val.startswith('"') and val.endswith('"'))):
-        val = val[1:-1]
-    return val
+class MissingEnvironmentVariable(Exception):
+    """Exception raised when a required environment variable is missing."""
+    pass
 
 
-class Settings:  # noqa: R0903
-    """Application settings loaded from environment variables."""
-
-    # PROJECT META
-    PROJECT_NAME: str = _get_env("PROJECT_NAME", "QLDSV-HTC")
-    PROJECT_VERSION: str = _get_env("PROJECT_VERSION", "1.0.0")
-    PROJECT_DESCRIPTION: str = "API for QLDSV-HTC (Quản lý điểm sinh viên hệ tín chỉ)"
-
-    # API CONFIGURATION
-    API_PREFIX: str = _get_env("API_PREFIX", "/api/v1")
-    AUTH_PREFIX: str = _get_env("AUTH_PREFIX", "/auth")
-    SESSION_MAX_AGE: int = int(_get_env("SESSION_MAX_AGE", "3600"))
-    SESSION_SECRET: str = _get_env("SESSION_SECRET", secrets.token_hex(32))
-
-    # DATABASE CORE CONFIG
-    DB_HOST: str = _get_env("DB_HOST", "localhost")
-    DB_PORT: str = _get_env("DB_PORT", "1434")
-    DB_NAME: str = _get_env("DB_NAME", "QLDSV_HTC")
-    DB_CONTAINER_NAME: str = _get_env("DB_CONTAINER_NAME", "qldsv-sqlserver")
-    DB_DEFAULT_USER: str = _get_env("DB_DEFAULT_USER", "app_user")
-
-    # CREDENTIALS (required)
-    MSSQL_SA_PASSWORD: str = _get_env("MSSQL_SA_PASSWORD", required=True)
-    MSSQL_APP_USER: str = _get_env("MSSQL_APP_USER", "app_user")
-    MSSQL_APP_PASSWORD: str = _get_env("MSSQL_APP_PASSWORD", required=True)
-
-    # ROLE-SPECIFIC (optional but encouraged)
-    MSSQL_PGV_USER: str = _get_env("MSSQL_PGV_USER", "pgv_user")
-    MSSQL_PGV_PASSWORD: str = _get_env("MSSQL_PGV_PASSWORD", required=True)
-    MSSQL_KHOA_USER: str = _get_env("MSSQL_KHOA_USER", "khoa_user")
-    MSSQL_KHOA_PASSWORD: str = _get_env("MSSQL_KHOA_PASSWORD", required=True)
-    MSSQL_SV_USER: str = _get_env("MSSQL_SV_USER", "sv_user")
-    MSSQL_SV_PASSWORD: str = _get_env("MSSQL_SV_PASSWORD", required=True)
-
-    # DYNAMIC USER PREFIX for future scaling
-    USER_PREFIX: str = "MSSQL_"  # Pattern: MSSQL_<USERNAME>_PASSWORD
-
-    # Database connection strings (built lazily in __post_init__)
-    ODBC_CONNECTION_STRING: str = ""
-    SA_ODBC_CONNECTION_STRING: str = ""
-
-    # API / PLATFORM
-    CORS_ORIGINS: list = ["*"]
-    IS_MACOS: bool = platform.system() == "Darwin"
-
-    # DEVELOPMENT / FALLBACK SETTINGS
-    ENABLE_TEACHER_FALLBACK_AUTH: bool = _get_env(
-        "ENABLE_TEACHER_FALLBACK_AUTH", "true").lower() == "true"
-    DEVELOPMENT_MODE: bool = _get_env(
-        "DEVELOPMENT_MODE", "true").lower() == "true"
-
-    def __post_init__(self):
-        # Build connection strings after variables exist
-        self.ODBC_CONNECTION_STRING = (
-            f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={self.DB_HOST},{self.DB_PORT};DATABASE={self.DB_NAME};"
-            f"UID={self.MSSQL_APP_USER};PWD={self.MSSQL_APP_PASSWORD};TrustServerCertificate=yes;Connection Timeout=30;Encrypt=yes;"
-        )
-        self.SA_ODBC_CONNECTION_STRING = (
-            f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={self.DB_HOST},{self.DB_PORT};"
-            f"UID=sa;PWD={self.MSSQL_SA_PASSWORD};TrustServerCertificate=yes;Connection Timeout=30;Encrypt=yes;"
-        )
-
-        # Debug logging of important vars (masking passwords)
-        logger.debug(
-            {
-                "DB_HOST": self.DB_HOST,
-                "DB_PORT": self.DB_PORT,
-                "DB_NAME": self.DB_NAME,
-                "SA_PASS_LEN": len(self.MSSQL_SA_PASSWORD),
-                "APP_USER": self.MSSQL_APP_USER,
-                "IS_MACOS": self.IS_MACOS,
-            }
-        )
-
-    # Utility to fetch dynamic user passwords
-    def get_dynamic_password(self, username: str) -> Optional[str]:
-        env_key = f"{self.USER_PREFIX}{username.upper()}_PASSWORD"
-        return os.getenv(env_key)
+def getenv_strict(key: str, default: Optional[str] = None) -> str:
+    """Get an environment variable or raise an exception if it's not set and no default provided."""
+    value = os.getenv(key)
+    if value is None:
+        if default is not None:
+            return default
+        raise MissingEnvironmentVariable(
+            f"Required environment variable '{key}' is not set")
+    return value
 
 
-@lru_cache()
-def get_settings() -> Settings:  # noqa: D401
-    """Return cached Settings instance (loads env only once)."""
+# Paths
+PROJECT_ROOT: Path = Path(__file__).resolve().parents[3]
+BACKEND_DIR: Path = PROJECT_ROOT / "backend"
+
+# Load env files
+ROOT_ENV: Path = PROJECT_ROOT / ".env"
+BACKEND_ENV: Path = BACKEND_DIR / ".env"
+
+
+class Settings:
+    """Singleton class for application settings."""
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(Settings, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        if not self._initialized:
+            # Load environment variables
+            from dotenv import load_dotenv
+
+            # Log environment file paths
+            logger.info(
+                f"ROOT_ENV path: {ROOT_ENV} (exists: {ROOT_ENV.exists()})")
+            logger.info(
+                f"BACKEND_ENV path: {BACKEND_ENV} (exists: {BACKEND_ENV.exists()})")
+
+            if ROOT_ENV.exists():
+                load_dotenv(ROOT_ENV, override=False)
+                logger.info(f"Loaded environment variables from {ROOT_ENV}")
+            if BACKEND_ENV.exists():
+                load_dotenv(BACKEND_ENV, override=True)
+                logger.info(f"Loaded environment variables from {BACKEND_ENV}")
+
+            # Core application settings
+            self.APP_TITLE = getenv_strict("APP_TITLE")
+            self.APP_DESCRIPTION = getenv_strict("APP_DESCRIPTION")
+            self.APP_VERSION = getenv_strict("APP_VERSION")
+
+            self.APP_HOST = getenv_strict("APP_HOST")
+            self.APP_PORT = int(getenv_strict("APP_PORT"))
+            self.APP_RELOAD = getenv_strict("APP_RELOAD").lower() in {
+                "1", "true", "yes"}
+
+            # Database settings
+            self.DB_HOST = getenv_strict("DB_HOST")
+            self.DB_PORT = getenv_strict("DB_PORT")
+            self.DB_NAME = getenv_strict("DB_NAME")
+            self.DB_DRIVER = getenv_strict("DB_DRIVER")
+            self.MSSQL_SA_PASSWORD = getenv_strict("MSSQL_SA_PASSWORD")
+            self.MSSQL_APP_USER = getenv_strict("MSSQL_APP_USER")
+            self.MSSQL_APP_PASSWORD = getenv_strict("MSSQL_APP_PASSWORD")
+            self.MSSQL_PGV_USER = getenv_strict("MSSQL_PGV_USER")
+            self.MSSQL_PGV_PASSWORD = getenv_strict("MSSQL_PGV_PASSWORD")
+            self.MSSQL_KHOA_USER = getenv_strict("MSSQL_KHOA_USER")
+            self.MSSQL_KHOA_PASSWORD = getenv_strict("MSSQL_KHOA_PASSWORD")
+            self.MSSQL_SV_USER = getenv_strict("MSSQL_SV_USER")
+            self.MSSQL_SV_PASSWORD = getenv_strict("MSSQL_SV_PASSWORD")
+
+            # API settings
+            self.API_PREFIX = getenv_strict("API_PREFIX")
+
+            # Logging settings
+            self.LOG_LEVEL = getenv_strict("LOG_LEVEL")
+
+            # Project info
+            self.PROJECT_NAME = getenv_strict("PROJECT_NAME")
+
+            self._initialized = True
+
+    def __getitem__(self, key):
+        """Allow dictionary-like access to settings."""
+        return getattr(self, key)
+
+    def get(self, key, default=None):
+        """Get a setting value with a default."""
+        return getattr(self, key, default)
+
+    def as_dict(self) -> Dict[str, Any]:
+        """Return all settings as a dictionary."""
+        return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
+
+
+def load_environment() -> Dict[str, Any]:
+    """Load environment variables from .env files."""
     settings = Settings()
-    settings.__post_init__()
-    return settings
+    return settings.as_dict()
+
+
+# Create a singleton instance
+APP_SETTINGS = Settings()
+
+
+def verify_cwd() -> None:
+    """Ensure the backend is executed from project root or backend directory."""
+    allowed_dirs: Set[Path] = {PROJECT_ROOT, BACKEND_DIR}
+    cwd = Path.cwd().resolve()
+
+    if cwd not in allowed_dirs:
+        print(
+            "\n".join(
+                [
+                    "[QLDSV-HTC] ❌  Backend must be started from the project root.",
+                    f"  Detected cwd: {cwd}",
+                    f"  Expected   : {PROJECT_ROOT}",
+                    "",
+                    "Hint: run `bash ./scripts/start-backend.sh` or `cd` to project root before executing the server.",
+                ]
+            ),
+            file=sys.stderr,
+        )
+        sys.exit(1)

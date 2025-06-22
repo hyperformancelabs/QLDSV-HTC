@@ -1,17 +1,11 @@
--- ===============================================
--- QLDSV-HTC Database Schema
--- File: 01-tables.sql
--- Description: Tạo tất cả các bảng chính cho hệ thống QLDSV-HTC
--- ===============================================
+-- Create all tables for $(DB_NAME) database
 
 USE [$(DB_NAME)];
 GO
 
--- ===============================================
--- 1. BẢNG KHOA
--- ===============================================
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[KHOA]'))
-DROP TABLE [dbo].[KHOA]
+-- 1. Table KHOA
+IF OBJECT_ID(N'[dbo].[KHOA]', N'U') IS NOT NULL
+DROP TABLE [dbo].[KHOA];
 GO
 
 CREATE TABLE [dbo].[KHOA](
@@ -22,11 +16,9 @@ CREATE TABLE [dbo].[KHOA](
 ) ON [PRIMARY]
 GO
 
--- ===============================================
--- 2. BẢNG LOP
--- ===============================================
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LOP]'))
-DROP TABLE [dbo].[LOP]
+-- 2. Table LOP
+IF OBJECT_ID(N'[dbo].[LOP]', N'U') IS NOT NULL
+DROP TABLE [dbo].[LOP];
 GO
 
 CREATE TABLE [dbo].[LOP](
@@ -41,11 +33,9 @@ CREATE TABLE [dbo].[LOP](
 ) ON [PRIMARY]
 GO
 
--- ===============================================
--- 3. BẢNG SINHVIEN
--- ===============================================
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[SINHVIEN]'))
-DROP TABLE [dbo].[SINHVIEN]
+-- 3. Table SINHVIEN
+IF OBJECT_ID(N'[dbo].[SINHVIEN]', N'U') IS NOT NULL
+DROP TABLE [dbo].[SINHVIEN];
 GO
 
 CREATE TABLE [dbo].[SINHVIEN](
@@ -64,11 +54,9 @@ CREATE TABLE [dbo].[SINHVIEN](
 ) ON [PRIMARY]
 GO
 
--- ===============================================
--- 4. BẢNG MONHOC
--- ===============================================
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[MONHOC]'))
-DROP TABLE [dbo].[MONHOC]
+-- 4. Table MONHOC
+IF OBJECT_ID(N'[dbo].[MONHOC]', N'U') IS NOT NULL
+DROP TABLE [dbo].[MONHOC];
 GO
 
 CREATE TABLE [dbo].[MONHOC](
@@ -81,11 +69,9 @@ CREATE TABLE [dbo].[MONHOC](
 ) ON [PRIMARY]
 GO
 
--- ===============================================
--- 5. BẢNG GIANGVIEN
--- ===============================================
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[GIANGVIEN]'))
-DROP TABLE [dbo].[GIANGVIEN]
+-- 5. Table GIANGVIEN
+IF OBJECT_ID(N'[dbo].[GIANGVIEN]', N'U') IS NOT NULL
+DROP TABLE [dbo].[GIANGVIEN];
 GO
 
 CREATE TABLE [dbo].[GIANGVIEN](
@@ -102,11 +88,9 @@ CREATE TABLE [dbo].[GIANGVIEN](
 ) ON [PRIMARY]
 GO
 
--- ===============================================
--- 6. BẢNG LOPTINCHI
--- ===============================================
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LOPTINCHI]'))
-DROP TABLE [dbo].[LOPTINCHI]
+-- 6. Table LOPTINCHI
+IF OBJECT_ID(N'[dbo].[LOPTINCHI]', N'U') IS NOT NULL
+DROP TABLE [dbo].[LOPTINCHI];
 GO
 
 CREATE TABLE [dbo].[LOPTINCHI](
@@ -133,11 +117,9 @@ CREATE TABLE [dbo].[LOPTINCHI](
 ) ON [PRIMARY]
 GO
 
--- ===============================================
--- 7. BẢNG DANGKY
--- ===============================================
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DANGKY]'))
-DROP TABLE [dbo].[DANGKY]
+-- 7. Table DANGKY
+IF OBJECT_ID(N'[dbo].[DANGKY]', N'U') IS NOT NULL
+DROP TABLE [dbo].[DANGKY];
 GO
 
 CREATE TABLE [dbo].[DANGKY](
@@ -157,5 +139,3 @@ CREATE TABLE [dbo].[DANGKY](
     CONSTRAINT [CK_DANGKY_DIEM_CK] CHECK ([DIEM_CK] IS NULL OR ([DIEM_CK] >= 0 AND [DIEM_CK] <= 10))
 ) ON [PRIMARY]
 GO
-
-PRINT 'Schema tables created successfully'; 

@@ -1,167 +1,105 @@
-import axios from 'axios';
+import { User, UserRole } from '@/types';
+import { API_BASE_URL } from '@/lib/config';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+export const LOGIN_ENDPOINT = `${API_BASE_URL}/auth/login`;
+export const LOGOUT_ENDPOINT = `${API_BASE_URL}/auth/logout`;
+export const ME_ENDPOINT = `${API_BASE_URL}/auth/me`;
 
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true, // Important for session-based auth
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Types for API responses
-export interface LoginRequest {
-  id: string;
+interface LoginCredentials {
+  username: string;
   password: string;
-  user_type: 'student' | 'teacher';
 }
 
-export interface LoginResponse {
-  status: string;
-  user: {
-    masv?: string;
-    magv?: string;
-    ho: string;
-    ten: string;
-    role: string;
-    [key: string]: any;
+/**
+ * Convert backend user info into frontend `User` model.
+ */
+function mapBackendUser(data: { username: string; fullname: string; role: string }): User {
+  // Split fullname => last token = tên, phần còn lại = họ
+  const parts = data.fullname.trim().split(' ');
+  const ten = parts.pop() || '';
+  const ho = parts.join(' ');
+
+  let role: UserRole;
+  switch (data.role) {
+    case 'pgv_role':
+      role = UserRole.PGV;
+      break;
+    case 'khoa_role':
+      role = UserRole.KHOA;
+      break;
+    default:
+      role = UserRole.SV;
+  }
+
+  return {
+    id: data.username,
+    username: data.username,
+    ho,
+    ten,
+    role,
+    masv: role === UserRole.SV ? data.username : undefined,
+    magv: role !== UserRole.SV ? data.username : undefined,
   };
 }
 
-export interface StudentSearchResult {
-  masv: string;
-  ho: string;
-  ten: string;
-  display_name: string;
+/**
+ * Thực hiện đăng nhập. Hàm sẽ trả về đối tượng `User` nếu thành công.
+ */
+export async function login(credentials: LoginCredentials): Promise<User> {
+  const res = await fetch(LOGIN_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(credentials),
+    credentials: 'include', // quan trọng để nhận cookie session
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || 'Đăng nhập thất bại');
+  }
+
+  const data = await res.json();
+  return mapBackendUser(data);
 }
 
-export interface TeacherSearchResult {
-  magv: string;
-  ho: string;
-  ten: string;
-  display_name: string;
+/**
+ * Đăng xuất – huỷ phiên ở phía server và xóa cookie.
+ */
+export async function logout(): Promise<void> {
+  await fetch(LOGOUT_ENDPOINT, {
+    method: 'POST',
+    credentials: 'include',
+  });
 }
 
-export interface StudentDetail {
-  masv: string;
-  ho: string;
-  ten: string;
-  malop: string;
-  phai: boolean;
-  ngaysinh: string;
-  diachi: string;
+/**
+ * Lấy thông tin người dùng hiện tại dựa trên session cookie.
+ */
+export async function getCurrentUser(): Promise<User | null> {
+  const res = await fetch(ME_ENDPOINT, {
+    method: 'GET',
+    credentials: 'include',
+  });
+
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error('Không thể lấy thông tin người dùng');
+
+  const data = await res.json();
+  return mapBackendUser(data);
 }
 
-export interface TeacherDetail {
-  magv: string;
-  ho: string;
-  ten: string;
-  makhoa: string;
-  hocvi?: string;
-  hocham?: string;
-  chuyenmon?: string;
-}
-
-class AuthService {
-  // Login function
-  async login(loginData: LoginRequest): Promise<LoginResponse> {
-    try {
-      const response = await apiClient.post('/auth/login', loginData);
-      return response.data;
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        throw new Error('Tên đăng nhập hoặc mật khẩu không đúng');
-      } else if (error.response?.status === 400) {
-        throw new Error('Thông tin đăng nhập không hợp lệ');
-      } else {
-        throw new Error('Lỗi hệ thống, vui lòng thử lại sau');
-      }
-    }
-  }
-
-  // Logout function
-  async logout(): Promise<void> {
-    try {
-      await apiClient.post('/auth/logout');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  }
-
-  // Get current user info
-  async getCurrentUser(): Promise<any> {
-    try {
-      const response = await apiClient.get('/auth/me');
-      return response.data;
-    } catch (error) {
-      throw new Error('Không thể lấy thông tin người dùng');
-    }
-  }
-
-  // Search students by name or ID
-  async searchStudents(searchTerm: string): Promise<StudentSearchResult[]> {
-    try {
-      const response = await apiClient.get(`/auth/students/search?search_term=${encodeURIComponent(searchTerm)}`);
-      return response.data;
-    } catch (error) {
-      console.error('Student search error:', error);
-      return [];
-    }
-  }
-
-  // Get student by ID
-  async getStudentById(masv: string): Promise<StudentDetail> {
-    try {
-      const response = await apiClient.get(`/auth/students/${masv}`);
-      return response.data;
-    } catch (error: any) {
-      throw new Error('Không tìm thấy sinh viên');
-    }
-  }
-
-  // Search teachers by name or ID
-  async searchTeachers(searchTerm: string): Promise<TeacherSearchResult[]> {
-    try {
-      const response = await apiClient.get(`/auth/teachers/search?search_term=${encodeURIComponent(searchTerm)}`);
-      return response.data;
-    } catch (error) {
-      console.error('Teacher search error:', error);
-      return [];
-    }
-  }
-
-  // Get teacher by ID
-  async getTeacherById(magv: string): Promise<TeacherDetail> {
-    try {
-      const response = await apiClient.get(`/auth/teachers/${magv}`);
-      return response.data;
-    } catch (error: any) {
-      throw new Error('Không tìm thấy giảng viên');
-    }
-  }
-
-  // Get all students for initial dropdown
-  async getAllStudents(): Promise<StudentSearchResult[]> {
-    try {
-      const response = await apiClient.get('/auth/students');
-      return response.data;
-    } catch (error) {
-      console.error('Get all students error:', error);
-      return [];
-    }
-  }
-
-  // Get all teachers for initial dropdown
-  async getAllTeachers(): Promise<TeacherSearchResult[]> {
-    try {
-      const response = await apiClient.get('/auth/teachers');
-      return response.data;
-    } catch (error) {
-      console.error('Get all teachers error:', error);
-      return [];
-    }
-  }
-}
-
-export default new AuthService(); 
+/**
+ * Checks if a token is valid
+ * @param token JWT token
+ * @returns Promise with boolean indicating if token is valid
+ */
+export async function validateToken(token: string): Promise<boolean> {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  // In a real app, we would validate the token on the server
+  // For demo, we'll just return true if the token exists
+  return !!token && token.startsWith('mock-jwt-token-');
+} 

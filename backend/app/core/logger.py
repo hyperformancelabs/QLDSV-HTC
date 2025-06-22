@@ -1,53 +1,55 @@
-import os
+"""Application logging configuration."""
+
 import logging
+import os
+import sys
+from pathlib import Path
+from typing import Dict, Any
 
-# Create logs directory if it doesn't exist
-os.makedirs("logs", exist_ok=True)
-
-# Cache for created loggers to avoid duplicates
-_loggers = {}
+from app.core.config import BACKEND_DIR
 
 
-def setup_logger(name: str) -> logging.Logger:
-    """
-    Configure and return a logger with the given name.
-    Uses a cache to ensure each logger name only gets one instance.
+def setup_logging(config) -> logging.Logger:
+    """Set up application logging based on configuration."""
+    log_level_str = config.LOG_LEVEL
+    log_level = getattr(logging, log_level_str.upper(), logging.INFO)
 
-    Args:
-        name: The name for the logger
+    # Ensure log directory exists
+    log_dir = BACKEND_DIR / "logs"
+    if not log_dir.exists():
+        os.makedirs(log_dir, exist_ok=True)
 
-    Returns:
-        A configured logger instance
-    """
-    # Return cached logger if already exists
-    if name in _loggers:
-        return _loggers[name]
+    log_file = log_dir / "server.log"
 
-    logger = logging.getLogger(name)
+    # Get the root logger
+    root_logger = logging.getLogger()
 
-    # Clear any existing handlers to start fresh
-    logger.handlers.clear()
+    # Clear existing handlers to avoid duplicates if called multiple times
+    if root_logger.handlers:
+        for handler in root_logger.handlers[:]:
+            root_logger.removeHandler(handler)
 
-    # Prevent propagation to root logger to avoid duplicates
-    logger.propagate = False
+    # Configure root logger
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.FileHandler(log_file)
+        ]
+    )
 
-    logger.setLevel(logging.INFO)
+    # Reduce verbosity of some loggers
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
-    # Set format
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    # Create application logger
+    logger = logging.getLogger("app")
 
-    # Add console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    # Clear existing handlers to avoid duplicates
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
 
-    # Add file handler
-    file_handler = logging.FileHandler("logs/app.log")
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-
-    # Cache the logger
-    _loggers[name] = logger
+    logger.setLevel(log_level)
+    logger.info(f"Logging initialized at level {log_level_str}")
 
     return logger

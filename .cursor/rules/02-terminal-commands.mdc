@@ -1,107 +1,59 @@
-# Terminal Commands & Testing Workflow
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# **Terminal commands Guidelines**
 
-## 🔧 Command Execution Rule
+* After completing any code changes or fixes, always run the `run_terminal_cmd` tool with the parameter `is_background=false`:
 
-Khi cần chạy terminal command, PHẢI sử dụng format này và prioritize script utilities:
+  * You **must always** run terminal commands with `is_background=false` so that you can see server logs and identify any runtime errors.
+  * **The server is always running in the background and updates in real-time with your code.** Therefore, errors related to port usage are normal when running bash scripts — ignore these and focus on other errors. Your task is to investigate and resolve all other issues. If there are **no other errors**, it means everything is working, and you've successfully updated the background server manually.
+  * If you **MUST** use python instead of bashscript, use `backend/venv/bin/python` from project root. **Nerver use** `python` or `python3`
 
-### ⚡ Requirements
-- LUÔN prioritize existing scripts thay vì raw commands
-- LUÔN load environment trước khi chạy scripts
-- CHỈ sử dụng direct commands khi không có script utility
+* Interact with the server using the following Bash scripts:
 
-### ✅ Examples với Script Architecture
+---
 
-**Database operations:**
-```json
-{
-"name": "run_terminal_cmd",
-"parameters": {
-"command": "./scripts/start-database.sh --full-default-setup",
-"is_background": false
-}
-}
-```
+## **1. Database (`start-database.sh`)**
 
-**Backend development:**
-```json
-{
-"name": "run_terminal_cmd",
-"parameters": {
-"command": "./scripts/start-backend.sh",
-"is_background": false
-}
-}
-```
+| Command                                | Description                                                      |
+| -------------------------------------- | ---------------------------------------------------------------- |
+| `./scripts/start-database.sh --setup`  | Creates a Docker network, pulls the image, then starts the DB.   |
+| `./scripts/start-database.sh`          | Starts an existing database container.                           |
+| `./scripts/start-database.sh --reset`  | **Deletes all data**, then recreates and restarts the DB.        |
+| `./scripts/start-database.sh --delete` | **Deletes all data and container**. Does **not** restart the DB. |
 
-**Frontend development:**
-```json
-{
-"name": "run_terminal_cmd",
-"parameters": {
-"command": "./scripts/start-frontend.sh",
-"is_background": false
-}
-}
-```
+---
 
-**Backend với reset database:**
-```json
-{
-"name": "run_terminal_cmd",
-"parameters": {
-"command": "./scripts/start-backend.sh --reset-db",
-"is_background": false
-}
-}
-```
+## **2. Backend (`start-backend.sh`)**
 
-**Direct database tools:**
-```json
-{
-"name": "run_terminal_cmd",
-"parameters": {
-"command": "cd backend && source venv/bin/activate && python -m app.db.utils",
-"is_background": false
-}
-}
-```
+| Command                                 | Description                                                                      |
+| --------------------------------------- | -------------------------------------------------------------------------------- |
+| `./scripts/start-backend.sh --setup`    | Creates a Python virtual environment, installs packages, then starts the server. |
+| `./scripts/start-backend.sh`            | Activates the environment and starts the FastAPI server.                         |
+| `./scripts/start-backend.sh --reset`    | Deletes and recreates the environment, then restarts the server.                 |
+| `./scripts/start-backend.sh --reset-db` | **(Special)** Triggers a database reset within the application.                  |
+| `./scripts/start-backend.sh --delete`   | Deletes the environment and logs. Does **not** restart the server.               |
 
-**ODBC driver check:**
-```json
-{
-"name": "run_terminal_cmd",
-"parameters": {
-"command": "cd backend && source venv/bin/activate && python -c \"import pyodbc; print(pyodbc.drivers())\"",
-"is_background": false
-}
-}
-```
+---
 
-## 🔄 Testing Workflow: Execute → Analyze → Plan → Auto-fix
+## **3. Frontend (`start-frontend.sh`)**
 
-Khi testing bất cứ thứ gì, sử dụng loop:
+| Command                                | Description                                                              |
+| -------------------------------------- | ------------------------------------------------------------------------ |
+| `./scripts/start-frontend.sh --setup`  | Runs `npm install`, creates a `.env` file, then starts the Vite server.  |
+| `./scripts/start-frontend.sh`          | Starts the Vite development server.                                      |
+| `./scripts/start-frontend.sh --reset`  | Deletes `node_modules`, reinstalls dependencies, then starts the server. |
+| `./scripts/start-frontend.sh --delete` | Deletes `node_modules` and logs. Does **not** restart the server.        |
 
-### 1. **Execute** - Chạy terminal command để test
-### 2. **Analyze** - Kiểm tra output, logs, errors
-### 3. **Plan** - Xác định những gì cần fix
-### 4. **Auto-fix** - Implement fixes dựa trên analysis
-### 5. **Repeat** - Tiếp tục loop cho đến khi resolve
+---
 
-### 🎯 Testing Examples
-- Start server → check logs → fix errors → restart
-- Run database script → check output → fix SQL → re-run
-- Test API endpoint → analyze response → fix logic → re-test
-- Check database connection → analyze error → fix driver → re-test
+### **Notes**
 
-## 📊 Debugging Priority
-1. **Terminal logs** - Primary source of truth
-2. **Error messages** - Chi tiết lỗi cụ thể
-3. **Status codes** - HTTP/SQL/System response codes
-4. **Configuration** - Environment variables, settings
-5. **Dependencies** - Missing packages, services
-6. **Driver issues** - ODBC drivers, connectivity problems
+* Database scripts only manage the SQL Server container environment — you generally **don't need to use them** unless you're working directly with the database.
+* You usually **don’t need to run** these bash scripts because the background servers automatically reflect code changes in real-time. Only run the scripts in the following cases:
 
-## ❌ Anti-Patterns
-- ❌ Không dùng wrapper như `"type": "function"`
-- ❌ Không thêm markdown, text, explanation ngoài JSON
-- ❌ Không thay đổi `is_background`, LUÔN để `false`
+  * **To verify a successful build**: Run `./scripts/start-backend.sh` or `./scripts/start-frontend.sh`.
+  * **When modifying `.sql` files in `@database/`**: Run `./scripts/start-backend.sh --reset-db` to drop and recreate the database.
+  * **When changing dependencies**: Run `./scripts/start-backend.sh --setup` or `./scripts/start-frontend.sh --setup` to install packages.

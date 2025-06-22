@@ -11,17 +11,23 @@ check_root_dir || exit 1
 load_env_file
 
 # Parse arguments
-FULL_SETUP=0
-RESET_DB=0
+# Flags
+SETUP=0       # --setup : run initial setup before start
+RESET_DB=0    # --reset : reset (drop) database then start fresh
+DELETE_DB=0   # --delete: delete database container & exit
 
 for arg in "$@"; do
     case $arg in
-        --full-default-setup)
-            FULL_SETUP=1
+        --setup)
+            SETUP=1
             shift
             ;;
-        --reset-db)
+        --reset)
             RESET_DB=1
+            shift
+            ;;
+        --delete)
+            DELETE_DB=1
             shift
             ;;
         *)
@@ -41,9 +47,22 @@ if [ $RESET_DB -eq 1 ]; then
     fi
 fi
 
+# NEW: Delete database (no restart) if requested
+if [ $DELETE_DB -eq 1 ]; then
+    echo "🗑️ Deleting database (container & volumes)..."
+    if [ -f "scripts/utils/db/delete-db.sh" ]; then
+        ./scripts/utils/db/delete-db.sh --force
+        echo "✅ Database deleted successfully. Exiting..."
+        exit 0
+    else
+        echo "⚠️ Database delete script not found. Cannot delete database."
+        exit 1
+    fi
+fi
+
 # Run full setup if requested
-if [ $FULL_SETUP -eq 1 ]; then
-    echo "🔄 Running full default setup before starting database..."
+if [ $SETUP -eq 1 ]; then
+    echo "🔄 Running setup before starting database..."
     if [ -f "scripts/setup/db/setup-database.sh" ]; then
         ./scripts/setup/db/setup-database.sh
     else
@@ -51,79 +70,13 @@ if [ $FULL_SETUP -eq 1 ]; then
     fi
 fi
 
-# Install ODBC driver if full setup requested
-if [ $FULL_SETUP -eq 1 ]; then
-    if [ -f "scripts/setup/db/install-odbc-driver.sh" ]; then
-        echo "🔌 Installing ODBC Driver for SQL Server..."
-        ./scripts/setup/db/install-odbc-driver.sh --skip-test
-    else
-        echo "⚠️ ODBC Driver installation script not found. Skipping..."
-    fi
-fi
-
 # Start the database
 echo "🚀 Starting database..."
 ./scripts/utils/db/start-db.sh
 
-# Check for ODBC driver after database is running  
-if [ -f "scripts/setup/db/install-odbc-driver.sh" ]; then
-    echo "🔍 Checking ODBC Driver configuration..."
-    
-    # Determine which Python environment to use
-    PYTHON_CMD="python3"
-    if [ -f "backend/venv/bin/python" ]; then
-        PYTHON_CMD="backend/venv/bin/python"
-        echo "🔍 Using backend virtual environment for ODBC test"
-    elif [ -f "venv/bin/python" ]; then
-        PYTHON_CMD="venv/bin/python"  
-        echo "🔍 Using root virtual environment for ODBC test"
-    fi
-    
-    # Try a simple connection test with Python
-    ODBC_TEST=$($PYTHON_CMD -c "
-import pyodbc
-import os
-try:
-    # First check if driver is installed
-    drivers = [x for x in pyodbc.drivers() if x.startswith('ODBC Driver')]
-    if not drivers:
-        print('DRIVER_MISSING')
-        exit(0)
-        
-    # Then try connection
-    conn_str = f\"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER=${DB_HOST},${DB_PORT};UID=sa;PWD=${MSSQL_SA_PASSWORD};TrustServerCertificate=yes;\"
-    conn = pyodbc.connect(conn_str, timeout=5)
-    conn.close()
-    print('SUCCESS')
-except ImportError:
-    print('PYODBC_MISSING')
-except Exception as e:
-    if \"Can't open lib 'ODBC Driver 18 for SQL Server'\" in str(e):
-        print('DRIVER_MISSING')
-    else:
-        print('CONNECTION_ERROR')
-" 2>/dev/null) || echo "SCRIPT_ERROR"
-
-    case $ODBC_TEST in
-        "PYODBC_MISSING")
-            echo "⚠️ pyodbc module not found. Consider installing it for direct database access."
-            echo "   Run: pip install pyodbc"
-            ;;
-        "DRIVER_MISSING")
-            echo "⚠️ ODBC Driver for SQL Server not detected."
-            echo "   To install, run: ./scripts/setup/db/install-odbc-driver.sh"
-            ;;
-        "CONNECTION_ERROR")
-            echo "⚠️ ODBC Driver installed but connection test failed."
-            echo "   This may be due to network or authentication issues."
-            ;;
-        "SUCCESS")
-            echo "✅ ODBC Driver properly installed and connection test successful!"
-            ;;
-        *)
-            echo "⚠️ Unknown ODBC test result: $ODBC_TEST"
-            ;;
-    esac
+# Optional: ODBC driver check
+if [ -f "scripts/utils/db/check-odbc.sh" ]; then
+    scripts/utils/db/check-odbc.sh || true
 fi
 
 # Run health check
@@ -140,5 +93,6 @@ echo "   - Port: $DB_PORT"
 echo "   - Database: $DB_NAME"
 echo ""
 echo "🔍 To check database status, run: ./scripts/utils/db/db-health-check.sh"
-echo "🔧 For full setup with ODBC, run: ./scripts/start-database.sh --full-default-setup"
-echo "🔄 To reset database completely, run: ./scripts/start-database.sh --reset-db" 
+echo "🔧 For initial setup, run: ./scripts/start-database.sh --setup"
+echo "♻️  To reset database, run:    ./scripts/start-database.sh --reset"
+echo "🗑️  To delete database, run:   ./scripts/start-database.sh --delete" 

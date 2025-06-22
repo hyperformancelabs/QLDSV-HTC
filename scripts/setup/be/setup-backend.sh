@@ -64,34 +64,44 @@ fi
 
 # Install required packages
 echo "🔄 Installing required Python packages..."
-pip install --upgrade pip
+backend/venv/bin/pip install --upgrade pip
 
 # Check if requirements.txt exists in backend directory
 if [ -f "backend/requirements.txt" ]; then
-    pip install -r backend/requirements.txt
+    backend/venv/bin/pip install -r backend/requirements.txt
 elif [ -f "requirements.txt" ]; then
-    pip install -r requirements.txt
+    backend/venv/bin/pip install -r requirements.txt
 else
     echo "⚠️ requirements.txt not found, installing basic packages..."
-    pip install fastapi uvicorn pyodbc python-dotenv sqlalchemy
+    backend/venv/bin/pip install fastapi uvicorn pyodbc python-dotenv sqlalchemy
 fi
 
 # Install SQL Server ODBC driver if not already installed
 echo "🔄 Checking for SQL Server ODBC driver..."
 
-# Detect OS for driver installation
+# Use backend virtual env to detect driver via pyodbc
+driver_check=1
+if backend/venv/bin/python - << 'PY'
+import sys, pyodbc
+sys.exit(0 if any('ODBC Driver 18' in d or 'ODBC Driver 17' in d for d in pyodbc.drivers()) else 1)
+PY
+then
+    echo "✅ Detected ODBC Driver for SQL Server (17/18) already installed."
+    driver_check=0
+else
+    echo "⚠️ ODBC Driver for SQL Server not detected on this system."
+fi
+
+# Provide platform-specific guidance only when driver missing
+if [ $driver_check -ne 0 ]; then
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS
-    echo "⚠️ On macOS, you need to install the ODBC Driver manually."
-    echo "Please visit: https://learn.microsoft.com/en-us/sql/connect/odbc/mac"
+        echo "💡 On macOS, install via Homebrew:"
+        echo "   brew tap microsoft/mssql-release && ACCEPT_EULA=Y brew install msodbcsql18 unixodbc"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    # Linux
-    echo "⚠️ On Linux, you need to install the ODBC Driver manually."
-    echo "Please visit: https://learn.microsoft.com/en-us/sql/connect/odbc/linux"
+        echo "💡 On Linux, follow Microsoft docs: https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server"
 elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
-    # Windows
-    echo "⚠️ On Windows, you need to install the ODBC Driver manually."
-    echo "Please visit: https://learn.microsoft.com/en-us/sql/connect/odbc/windows"
+        echo "💡 On Windows, download the installer: https://learn.microsoft.com/en-us/sql/connect/odbc/windows/microsoft-odbc-driver-for-sql-server"
+    fi
 fi
 
 # Create .env file if it doesn't exist
@@ -116,6 +126,20 @@ FASTAPI_DEBUG=${FASTAPI_DEBUG:-true}
 FASTAPI_RELOAD=${FASTAPI_RELOAD:-true}
 LOG_LEVEL=${LOG_LEVEL:-DEBUG}
 EOF
+fi
+
+# After installing python packages
+
+# ---- ODBC Driver check/install ----
+if backend/venv/bin/python - << 'PYCODE' 2>/dev/null | grep -q YES
+import pyodbc, sys
+print('YES' if any('ODBC Driver 17' in d or 'ODBC Driver 18' in d for d in pyodbc.drivers()) else 'NO')
+PYCODE
+then
+    echo "✅ ODBC driver detected"
+else
+    echo "🔄 ODBC driver not detected – running installer..."
+    scripts/setup/db/install-odbc-driver.sh --skip-test || true
 fi
 
 # Deactivate virtual environment
