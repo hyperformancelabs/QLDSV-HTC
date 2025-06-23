@@ -40,7 +40,9 @@ export interface Student {
   phai: boolean;
   ngaysinh: string;
   diachi: string;
-  dangnghihoc: boolean;
+  danghihoc: boolean;
+  tenlop?: string;
+  password?: string;
 }
 
 // Subject types

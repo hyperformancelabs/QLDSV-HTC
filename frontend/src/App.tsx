@@ -5,6 +5,7 @@ import DashboardPage from '@/pages/dashboard';
 import HealthPage from '@/pages/health';
 import { Toaster } from '@/components/ui/toaster';
 import SubjectsPage from '@/pages/subjects';
+import ClassManagementPage from '@/pages/class-management';
 
 // Demo placeholder page component for routes still under development
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -34,7 +35,7 @@ function App() {
           <Route path="/faculties" element={<PlaceholderPage title="Quản lý khoa" />} />
           
           {/* Class management */}
-          <Route path="/classes" element={<PlaceholderPage title="Quản lý lớp" />} />
+          <Route path="/classes" element={<ClassManagementPage />} />
           
           {/* Student management */}
           <Route path="/students" element={<PlaceholderPage title="Quản lý sinh viên" />} />
