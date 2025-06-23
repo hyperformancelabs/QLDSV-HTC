@@ -4,8 +4,9 @@ import LoginPage from '@/pages/login';
 import DashboardPage from '@/pages/dashboard';
 import HealthPage from '@/pages/health';
 import { Toaster } from '@/components/ui/toaster';
+import SubjectsPage from '@/pages/subjects';
 
-// Demo placeholder pages
+// Demo placeholder page component for routes still under development
 const PlaceholderPage = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center py-12">
     <h1 className="text-2xl font-bold mb-4">{title}</h1>
@@ -19,10 +20,13 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* Public routes (no auth required) */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/health" element={<HealthPage />} />
         
+        {/* Protected routes (require auth) */}
         <Route element={<MainLayout />}>
+          {/* Redirect root to dashboard */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           
@@ -38,8 +42,8 @@ function App() {
           {/* Teacher management */}
           <Route path="/teachers" element={<PlaceholderPage title="Quản lý giảng viên" />} />
           
-          {/* Subject management */}
-          <Route path="/subjects" element={<PlaceholderPage title="Quản lý môn học" />} />
+          {/* Subject management - implemented */}
+          <Route path="/subjects" element={<SubjectsPage />} />
           
           {/* Credit class management */}
           <Route path="/credit-classes" element={<PlaceholderPage title="Quản lý lớp tín chỉ" />} />
@@ -70,6 +74,7 @@ function App() {
         </Route>
       </Routes>
       
+      {/* Global toast container */}
       <Toaster />
     </Router>
   );

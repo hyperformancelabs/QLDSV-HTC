@@ -191,7 +191,7 @@ Thumbs.db
 *.bak
 
 # cookie
-*cookies.txt
+*cookie*
 
 # Ignore local environment overrides
 *.env.local

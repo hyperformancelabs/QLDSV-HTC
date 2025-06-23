@@ -28,14 +28,14 @@ interface NavItem {
   title: string;
   href: string;
   icon: React.ReactNode;
-  roles: UserRole[];
+  roles: UserRole[];  // Which roles can see this item
 }
 
 export function Sidebar({ open, onOpenChange }: SidebarProps) {
   const { user } = useAuthStore();
   const location = useLocation();
 
-  // Simplified menu structure based on the image
+  // Nav items configuration with role-based access control
   const navItems: NavItem[] = [
     {
       title: 'Trang chủ',
@@ -47,7 +47,7 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
       title: 'Môn học',
       href: '/subjects',
       icon: <BookOpen className="h-5 w-5" />,
-      roles: [UserRole.PGV, UserRole.KHOA, UserRole.SV],
+      roles: [UserRole.PGV, UserRole.KHOA],
     },
     {
       title: 'Giảng viên',
@@ -100,15 +100,16 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
 
   return (
     <>
-      {/* Overlay for mobile */}
+      {/* Mobile overlay - only shown when sidebar is open on small screens */}
       {open && (
         <div 
           className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden"
           onClick={() => onOpenChange(false)}
+          aria-hidden="true"
         />
       )}
       
-      {/* Sidebar */}
+      {/* Sidebar component */}
       <div 
         className={cn(
           "fixed top-[60px] left-0 z-40 h-[calc(100vh-60px)] border-r bg-background transition-all duration-300",
@@ -118,10 +119,10 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
           width: open ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED 
         }}
       >
-        {/* Navigation */}
+        {/* Navigation links */}
         <div className="flex flex-col h-full">
           <div className="flex-1 overflow-y-auto py-3">
-            <div className="space-y-1 px-3">
+            <nav className="space-y-1 px-3">
               {filteredNavItems.map((item) => (
                 <NavLink
                   key={item.href}
@@ -134,18 +135,21 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
                     !open && "justify-center px-0"
                   )}
                 >
+                  {/* Icon is always shown */}
                   <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
                     {item.icon}
                   </div>
+                  
+                  {/* Title is only shown when sidebar is expanded */}
                   {open && (
                     <span className="ml-3 overflow-hidden text-ellipsis">{item.title}</span>
                   )}
                 </NavLink>
               ))}
-            </div>
+            </nav>
           </div>
           
-          {/* Footer */}
+          {/* Footer section */}
           <div className={cn(
             "border-t transition-all duration-300",
             open ? "p-4" : "p-2 text-center"

@@ -7,7 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { APP_NAME, SIDEBAR_WIDTH_EXPANDED, SIDEBAR_WIDTH_COLLAPSED } from '@/lib/config';
 
 export function MainLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const { isAuthenticated } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();

@@ -3,3 +3,4 @@
 !database/prebuild/
 !*logs/
 !temp.py
+!*cookie*

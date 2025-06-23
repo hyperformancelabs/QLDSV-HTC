@@ -63,6 +63,8 @@ class AuthRepository:
             if user_info is None:
                 raise ValueError(
                     "Failed to retrieve user info for teacher login")
+            user_info["username"] = login_name
+            user_info["password"] = password
             return user_info
         finally:
             conn.close()
@@ -76,6 +78,8 @@ class AuthRepository:
             user_info = self._call_sp_check_login_sv(conn, masv, password)
             if user_info is None:
                 raise ValueError("Sai mã sinh viên hoặc mật khẩu")
+            user_info["username"] = masv
+            user_info["password"] = password
             return user_info
         finally:
             conn.close()
