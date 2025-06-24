@@ -42,3 +42,18 @@ ALTER ROLE khoa_role ADD MEMBER [$(MSSQL_KHOA_USER)];
 ALTER ROLE sv_role ADD MEMBER [$(MSSQL_SV_USER)];
 ALTER ROLE app_role ADD MEMBER [$(MSSQL_APP_USER)];
 GO
+
+-- Grant sysadmin to superadmin login
+-- NOTE: This requires switching context to master
+USE [master];
+GO
+
+IF EXISTS (SELECT * FROM sys.server_principals WHERE name = '$(MSSQL_SUPERADMIN_USER)')
+BEGIN
+    ALTER SERVER ROLE sysadmin ADD MEMBER [$(MSSQL_SUPERADMIN_USER)];
+END
+GO
+
+-- Switch back to the application database context
+USE [$(DB_NAME)];
+GO

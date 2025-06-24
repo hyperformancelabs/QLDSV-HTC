@@ -89,6 +89,11 @@ class Settings:
             self.MSSQL_SV_USER = getenv_strict("MSSQL_SV_USER")
             self.MSSQL_SV_PASSWORD = getenv_strict("MSSQL_SV_PASSWORD")
 
+            # SA credentials for login operations
+            self.SA_USERNAME = getenv_strict("SA_USERNAME", "sa")
+            self.SA_PASSWORD = getenv_strict(
+                "SA_PASSWORD", self.MSSQL_SA_PASSWORD)
+
             # API settings
             self.API_PREFIX = getenv_strict("API_PREFIX")
 

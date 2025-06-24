@@ -143,3 +143,25 @@ def get_connection_with_credentials(user: str, password: str, database: Optional
     except Exception as exc:
         logger.error("Failed to connect using user '%s': %s", user, str(exc))
         raise
+
+
+def get_sa_connection(database: Optional[str] = None) -> pyodbc.Connection:
+    """Get a database connection with SA credentials for SQL login operations.
+
+    This is specifically for operations that require sysadmin permissions,
+    such as creating SQL Server logins.
+    """
+    connection_string = build_connection_string(
+        APP_SETTINGS.SA_USERNAME,
+        APP_SETTINGS.SA_PASSWORD,
+        database
+    )
+    try:
+        logger.debug(
+            "Attempting to connect with SA credentials: %sPWD=*****",
+            connection_string.split("PWD=")[0],
+        )
+        return pyodbc.connect(connection_string)
+    except Exception as exc:
+        logger.error("Failed to connect using SA credentials: %s", str(exc))
+        raise

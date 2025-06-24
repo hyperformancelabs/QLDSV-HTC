@@ -12,7 +12,8 @@ import {
   School,
   User,
   BarChart4,
-  Home
+  Home,
+  UserCog
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/use-auth-store';
@@ -51,9 +52,9 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
     },
     {
       title: 'Giảng viên',
-      href: '/teachers',
-      icon: <User className="h-5 w-5" />,
-      roles: [UserRole.PGV, UserRole.KHOA],
+      href: '/lecturer-accounts',
+      icon: <UserCog className="h-5 w-5" />,
+      roles: [UserRole.PGV],
     },
     {
       title: 'Lớp',

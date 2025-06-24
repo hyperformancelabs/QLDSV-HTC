@@ -64,6 +64,20 @@ export interface Teacher {
   chuyenmon?: string;
 }
 
+// Lecturer Account types
+export interface LecturerAccount {
+  MAGV: string;
+  HO: string;
+  TEN: string;
+  HOCVI: string | null;
+  HOCHAM: string | null;
+  CHUYENMON: string | null;
+  MAKHOA: string;
+  TENKHOA: string;
+  HasLogin: boolean;
+  RoleName: string | null;
+}
+
 // Credit Class types
 export interface CreditClass {
   maltc: string;

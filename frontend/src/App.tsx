@@ -6,6 +6,7 @@ import HealthPage from '@/pages/health';
 import { Toaster } from '@/components/ui/toaster';
 import SubjectsPage from '@/pages/subjects';
 import ClassManagementPage from '@/pages/class-management';
+import LecturerAccounts from './pages/lecturer-accounts';
 
 // Demo placeholder page component for routes still under development
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -69,6 +70,9 @@ function App() {
           
           {/* Profile */}
           <Route path="/profile" element={<PlaceholderPage title="Hồ sơ cá nhân" />} />
+          
+          {/* Lecturer accounts */}
+          <Route path="/lecturer-accounts" element={<LecturerAccounts />} />
           
           {/* 404 - Not Found */}
           <Route path="*" element={<PlaceholderPage title="404 - Không tìm thấy trang" />} />
