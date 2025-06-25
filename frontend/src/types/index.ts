@@ -103,6 +103,77 @@ export interface Registration {
   huy_dang_ky: boolean;
 }
 
+// LopTinChi types (enhanced Credit Class)
+export interface LopTinChi {
+  MALTC: number;
+  NIENKHOA: string;
+  HOCKY: number;
+  MAMH: string;
+  TENMH: string;
+  NHOM: number;
+  MAGV: string;
+  HOTENGV: string;
+  MAKHOA: string;
+  TENKHOA: string;
+  SOSVTOITHIEU: number;
+  SOSVDANGKY: number;
+  HUYLOP: boolean;
+}
+
+// LopTinChi Filter types
+export interface LopTinChiFilter {
+  nienkhoa?: string;
+  hocky?: number;
+  makhoa?: string;
+  only_available?: boolean;
+}
+
+// LopTinChi Create/Update types
+export interface LopTinChiUpsert {
+  MALTC?: number;
+  NIENKHOA: string;
+  HOCKY: number;
+  MAMH: string;
+  NHOM: number;
+  MAGV: string;
+  MAKHOA: string;
+  SOSVTOITHIEU: number;
+}
+
+// DangKy types (enhanced Registration)
+export interface DangKy {
+  MALTC: number;
+  NIENKHOA: string;
+  HOCKY: number;
+  TENMH: string;
+  NHOM: number;
+  HOTENGV: string;
+  DIEM_CC: number | null;
+  DIEM_GK: number | null;
+  DIEM_CK: number | null;
+  DIEM_HET_MON: number | null;
+  HUYDANGKY: boolean;
+}
+
+// DangKy Create/Cancel types
+export interface DangKyCreate {
+  MALTC: number;
+  MASV: string;
+}
+
+export interface DangKyCancel {
+  MALTC: number;
+  MASV: string;
+}
+
+// Student Info type
+export interface StudentInfo {
+  MASV: string;
+  HO: string;
+  TEN: string;
+  MALOP: string;
+}
+
 // Grade Report types
 export interface GradeReport {
   maltc: string;

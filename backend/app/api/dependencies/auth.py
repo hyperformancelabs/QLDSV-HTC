@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 from fastapi import Request, HTTPException, status
 
@@ -77,6 +77,31 @@ def require_role(required_roles: list[str]):
         return user
 
     return dependency
+
+
+def check_role_permission(user: Dict[str, Any], allowed_roles: List[str]) -> None:
+    """
+    Check if a user has one of the allowed roles.
+
+    Args:
+        user: User dictionary from session
+        allowed_roles: List of role names that are allowed
+
+    Raises:
+        HTTPException: If the user doesn't have any of the required roles
+    """
+    user_roles = user.get("roles", [])
+
+    # Check if any of the user's roles match the allowed roles
+    if not any(role in allowed_roles for role in user_roles):
+        logger.warning(
+            f"Permission denied: User with roles {user_roles} "
+            f"attempted to access resource requiring one of {allowed_roles}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không có quyền truy cập chức năng này"
+        )
 
 
 # Predefined role-based dependencies

@@ -13,7 +13,8 @@ import {
   User,
   BarChart4,
   Home,
-  UserCog
+  UserCog,
+  PenTool
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/use-auth-store';
@@ -66,7 +67,13 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
       title: 'Lớp tín chỉ',
       href: '/credit-classes',
       icon: <CalendarRange className="h-5 w-5" />,
-      roles: [UserRole.PGV, UserRole.KHOA, UserRole.SV],
+      roles: [UserRole.PGV, UserRole.KHOA],
+    },
+    {
+      title: 'Đăng ký học phần',
+      href: '/registrations',
+      icon: <PenTool className="h-5 w-5" />,
+      roles: [UserRole.SV],
     },
     {
       title: 'Điểm',

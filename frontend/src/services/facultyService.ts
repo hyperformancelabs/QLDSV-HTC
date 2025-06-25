@@ -6,8 +6,13 @@ import { API_BASE_URL } from '@/lib/config';
 
 // Basic Faculty data structure
 export interface Faculty {
+  // DB-style keys (primary)
   MAKHOA: string;      // Faculty code
   TENKHOA: string;     // Faculty name
+
+  // camelCase aliases
+  makhoa: string;
+  tenkhoa: string;
 }
 
 const BASE_ENDPOINT = `${API_BASE_URL}/khoa`;
@@ -31,9 +36,22 @@ export async function fetchFaculties(): Promise<Faculty[]> {
     }
     
     const data = await res.json();
-    return data.data as Faculty[];
+    // Normalize and include both DB-style and camelCase keys
+    return (data.data as any[]).map((item) => {
+      const code = (item.MAKHOA ?? item.makhoa).trim();
+      const name = item.TENKHOA ?? item.tenkhoa;
+
+      return {
+        MAKHOA: code,
+        TENKHOA: name,
+        makhoa: code,
+        tenkhoa: name,
+      } as Faculty;
+    });
   } catch (error) {
     console.error('Error fetching faculties:', error);
     throw new Error('Không thể kết nối đến máy chủ');
   }
-} 
+}
+
+export { fetchFaculties as getAllFaculties }; 

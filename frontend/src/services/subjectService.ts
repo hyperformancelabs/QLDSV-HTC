@@ -6,11 +6,18 @@ import { API_BASE_URL } from '@/lib/config';
 
 // Basic Subject data structure
 export interface Subject {
-  MAMH: string;     // Subject code
-  TENMH: string;    // Subject name
-  SOTIET_LT: number; // Theory hours
-  SOTIET_TH: number; // Practice hours
-  IS_LINKED: boolean; // Whether this subject is used by any credit classes
+  // Primary DB-style keys
+  MAMH: string;          // Subject code (primary)
+  TENMH: string;         // Subject name
+  SOTIET_LT: number;     // Theory hours
+  SOTIET_TH: number;     // Practice hours
+  IS_LINKED: boolean;    // Whether this subject is used by any credit classes
+
+  // Camel-case aliases for convenience
+  mamh: string;
+  tenmh: string;
+  sotiet_lt: number;
+  sotiet_th: number;
 }
 
 // Extended Subject with metadata for UI state management
@@ -48,7 +55,29 @@ export async function fetchSubjects(): Promise<Subject[]> {
     }
     
     const data = await res.json();
-    return data.data as Subject[];
+    // Normalize keys and include both DB-style (uppercase) and camelCase versions
+    return (data.data as any[]).map((item) => {
+      const code = (item.MAMH ?? item.mamh).trim();
+      const name = item.TENMH ?? item.tenmh;
+      const theory = item.SOTIET_LT ?? item.sotiet_lt ?? 0;
+      const practice = item.SOTIET_TH ?? item.sotiet_th ?? 0;
+      const linked = item.IS_LINKED ?? item.is_linked ?? false;
+
+      return {
+        // DB-style keys
+        MAMH: code,
+        TENMH: name,
+        SOTIET_LT: theory,
+        SOTIET_TH: practice,
+        IS_LINKED: linked,
+
+        // camelCase aliases
+        mamh: code,
+        tenmh: name,
+        sotiet_lt: theory,
+        sotiet_th: practice,
+      } as Subject;
+    });
   } catch (error) {
     console.error('Error fetching subjects:', error);
     throw new Error('Không thể kết nối đến máy chủ');
@@ -183,4 +212,6 @@ export async function checkSubjectNameExists(tenmh: string): Promise<boolean> {
   } catch {
     return false; // In case of error, don't block the user
   }
-} 
+}
+
+export { fetchSubjects as getAllSubjects }; 

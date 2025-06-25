@@ -33,8 +33,11 @@ def create_app() -> FastAPI:
     if cors_origins_env:
         origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
     else:
-        # Default to Vite dev server in development mode (single port)
-        origins = ["http://localhost:5173"]
+        # Default to Vite dev server in development mode (port may auto-shift)
+        origins = [
+            "http://localhost:5173",
+            "http://localhost:5174",
+        ]
 
     # Warn developers when the configuration is potentially unsafe / invalid
     if "*" in origins:

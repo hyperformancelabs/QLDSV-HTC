@@ -191,11 +191,18 @@ export default function SubjectsPage() {
     
     // Create a new empty subject
     const newSubject: Subject = {
+      // DB-style keys
       MAMH: '',
       TENMH: '',
-      SOTIET_LT: 15,  // Default value
-      SOTIET_TH: 0,   // Default value
-      IS_LINKED: false
+      SOTIET_LT: 15, // Default value
+      SOTIET_TH: 0,  // Default value
+      IS_LINKED: false,
+
+      // camelCase aliases
+      mamh: '',
+      tenmh: '',
+      sotiet_lt: 15,
+      sotiet_th: 0,
     };
     
     setEditingId('new');

@@ -186,11 +186,18 @@ export const useSubjectsStore = create<SubjectsState>()(
           if ((subject.isNew || subject.isModified) && !subject.isDeleted) {
             // Clean up the subject (remove metadata)
             const clean: Subject = {
+              // DB-style keys
               MAMH: subject.MAMH,
               TENMH: subject.TENMH,
               SOTIET_LT: subject.SOTIET_LT,
               SOTIET_TH: subject.SOTIET_TH,
-              IS_LINKED: subject.IS_LINKED
+              IS_LINKED: subject.IS_LINKED,
+
+              // camelCase aliases
+              mamh: subject.MAMH,
+              tenmh: subject.TENMH,
+              sotiet_lt: subject.SOTIET_LT,
+              sotiet_th: subject.SOTIET_TH,
             };
             toSave.push(clean);
           }

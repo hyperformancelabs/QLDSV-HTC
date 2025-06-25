@@ -7,6 +7,8 @@ import { Toaster } from '@/components/ui/toaster';
 import SubjectsPage from '@/pages/subjects';
 import ClassManagementPage from '@/pages/class-management';
 import LecturerAccounts from './pages/lecturer-accounts';
+import CreditClassesPage from './pages/credit-classes';
+import StudentRegistrationsPage from './pages/student-registrations';
 
 // Demo placeholder page component for routes still under development
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -47,11 +49,11 @@ function App() {
           {/* Subject management - implemented */}
           <Route path="/subjects" element={<SubjectsPage />} />
           
-          {/* Credit class management */}
-          <Route path="/credit-classes" element={<PlaceholderPage title="Quản lý lớp tín chỉ" />} />
+          {/* Credit class management - implemented */}
+          <Route path="/credit-classes" element={<CreditClassesPage />} />
           
-          {/* Registration management */}
-          <Route path="/registrations" element={<PlaceholderPage title="Đăng ký lớp tín chỉ" />} />
+          {/* Registration management - implemented */}
+          <Route path="/registrations" element={<StudentRegistrationsPage />} />
           
           {/* Grade management */}
           <Route path="/grades" element={<PlaceholderPage title="Quản lý điểm" />} />

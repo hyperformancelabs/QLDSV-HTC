@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.endpoints import auth, health, monhoc, lop, sinhvien, khoa, giangvien
+from app.api.endpoints import auth, health, monhoc, lop, sinhvien, khoa, giangvien, loptinchi
 
 # Create the main API router without prefix (prefix is added in application.py)
 api_router = APIRouter()
@@ -29,6 +29,10 @@ api_router.include_router(khoa.router, prefix="/khoa", tags=["Khoa"])
 # GIANGVIEN management router
 api_router.include_router(
     giangvien.router, prefix="/giangvien", tags=["Giang Vien"])
+
+# LOPTINCHI management router
+api_router.include_router(
+    loptinchi.router, prefix="/loptinchi", tags=["Lop Tin Chi"])
 
 # Add more routers here as needed
 # Example:
