@@ -6,6 +6,7 @@ import logging
 from typing import List, Dict, Optional, Tuple, Union
 
 import pyodbc
+from fastapi import HTTPException, status
 
 from app.db.connection import get_connection_with_credentials
 
@@ -353,6 +354,36 @@ class LopTinChiRepository:
         finally:
             pass
 
+    def reregister_course(self, masv: str, maltc: int) -> None:
+        """
+        Re-register a student for a previously canceled class section.
+
+        Args:
+            masv: Student ID
+            maltc: Class section ID
+
+        Raises:
+            pyodbc.Error: On database errors
+        """
+        try:
+            cursor = self.conn.cursor()
+
+            # Execute re-register stored procedure
+            cursor.execute("EXEC dbo.SP_DK_Reregister ?, ?", masv, maltc)
+
+            # Commit the transaction
+            self.conn.commit()
+            logger.info(
+                f"Successfully re-registered student {masv} for class section {maltc}")
+
+        except pyodbc.Error as err:
+            self.conn.rollback()
+            logger.error(
+                f"Error re-registering student {masv} for class section {maltc}: {err}")
+            raise
+        finally:
+            pass
+
     def list_student_registrations(self, masv: str) -> List[Dict]:
         """
         List all class sections a student has registered for.
@@ -417,6 +448,135 @@ class LopTinChiRepository:
             raise
         finally:
             pass
+
+    def get_students_for_grading(self, nienkhoa: str, hocky: int, mamh: str, nhom: int) -> List[Dict]:
+        """
+        Get students for grading based on filter criteria.
+
+        Args:
+            nienkhoa: Academic year
+            hocky: Semester
+            mamh: Subject ID
+            nhom: Group number
+
+        Returns:
+            List of student records with grade information
+        """
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                "EXEC SP_DK_GetStudentsForGrading @NIENKHOA=?, @HOCKY=?, @MAMH=?, @NHOM=?",
+                (nienkhoa, hocky, mamh, nhom)
+            )
+
+            result = []
+            for row in cursor.fetchall():
+                result.append(self._row_to_dict(row))
+
+            cursor.close()
+            return result
+
+        except pyodbc.Error as e:
+            logger.error(
+                f"Database error in get_students_for_grading: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Lỗi khi truy vấn danh sách sinh viên: {str(e)}"
+            )
+
+    def save_student_grade(self, maltc: int, masv: str, diem_cc: Optional[int] = None,
+                           diem_gk: Optional[float] = None, diem_ck: Optional[float] = None) -> None:
+        """
+        Save grades for a single student.
+
+        Args:
+            maltc: Credit class ID
+            masv: Student ID
+            diem_cc: Attendance grade (0-10)
+            diem_gk: Midterm grade (0-10)
+            diem_ck: Final grade (0-10)
+        """
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                "EXEC SP_DK_SaveGrades @MALTC=?, @MASV=?, @DIEM_CC=?, @DIEM_GK=?, @DIEM_CK=?",
+                (maltc, masv, diem_cc, diem_gk, diem_ck)
+            )
+            self.conn.commit()
+            cursor.close()
+
+        except pyodbc.Error as e:
+            logger.error(f"Database error in save_student_grade: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Lỗi khi lưu điểm sinh viên: {str(e)}"
+            )
+
+    def save_multiple_grades(self, maltc: int, grades: List[Dict]) -> None:
+        """
+        Save grades for multiple students at once.
+
+        Args:
+            maltc: Credit class ID
+            grades: List of student grades with masv, diem_cc, diem_gk, diem_ck
+        """
+        try:
+            # Prepare list parameters
+            masv_list = []
+            diem_cc_list = []
+            diem_gk_list = []
+            diem_ck_list = []
+
+            for grade in grades:
+                masv = grade.get('masv', '')
+                masv_list.append(masv)
+
+                # Trước khi cập nhật điểm mới, lấy điểm hiện tại từ DB
+                cursor = self.conn.cursor()
+                cursor.execute(
+                    "SELECT DIEM_CC, DIEM_GK, DIEM_CK FROM DANGKY WHERE MALTC=? AND MASV=?",
+                    (maltc, masv)
+                )
+                row = cursor.fetchone()
+
+                # Nếu có dữ liệu từ DB, sử dụng làm giá trị mặc định
+                current_cc = row[0] if row else None
+                current_gk = row[1] if row else None
+                current_ck = row[2] if row else None
+
+                # Chỉ cập nhật các giá trị được gửi lên, giữ nguyên các giá trị khác
+                cc = grade.get('diem_cc', current_cc)
+                gk = grade.get('diem_gk', current_gk)
+                ck = grade.get('diem_ck', current_ck)
+
+                # Chuyển đổi thành chuỗi SQL
+                diem_cc_list.append('NULL' if cc is None else str(int(cc)))
+                diem_gk_list.append('NULL' if gk is None else str(float(gk)))
+                diem_ck_list.append('NULL' if ck is None else str(float(ck)))
+
+            # Convert lists to comma-separated strings
+            masv_str = ','.join(masv_list)
+            diem_cc_str = ','.join(diem_cc_list)
+            diem_gk_str = ','.join(diem_gk_list)
+            diem_ck_str = ','.join(diem_ck_list)
+
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                EXEC SP_DK_SaveMultipleGrades 
+                @MALTC=?, @MASV_LIST=?, @DIEM_CC_LIST=?, @DIEM_GK_LIST=?, @DIEM_CK_LIST=?
+                """,
+                (maltc, masv_str, diem_cc_str, diem_gk_str, diem_ck_str)
+            )
+            self.conn.commit()
+            cursor.close()
+
+        except pyodbc.Error as e:
+            logger.error(f"Database error in save_multiple_grades: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Lỗi khi lưu điểm nhiều sinh viên: {str(e)}"
+            )
 
     def close_connection(self):
         """Close the database connection if it was created by this repository."""

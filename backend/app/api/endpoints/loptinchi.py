@@ -18,7 +18,10 @@ from app.schemas.loptinchi import (
     DangKyCreate,
     DangKyCancel,
     DangKyResponse,
-    StudentInfo
+    StudentInfo,
+    StudentGradeResponse,
+    StudentGrade,
+    MultipleGradesUpdate
 )
 from app.services.loptinchi import LopTinChiService
 
@@ -210,6 +213,37 @@ async def cancel_registration(
     return service.cancel_registration(cancel_data)
 
 
+@router.post("/reregister", response_model=Dict)
+async def reregister_course(
+    registration_data: DangKyCancel,
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Re-register a student for a previously canceled class section.
+
+    This endpoint can be accessed by users with PGV role or SV role (if re-registering themselves).
+    """
+    # Check if user has PGV role or is a student registering themselves
+    user_role = current_user.get("role")
+    if user_role != "pgv_role" and user_role == "sv_role":
+        # Student can only register themselves
+        if registration_data.masv != current_user.get("username"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Sinh viên chỉ được phép đăng ký lại cho chính mình"
+            )
+    elif user_role != "pgv_role":
+        # Neither PGV nor student - forbidden
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Không có quyền đăng ký lại lớp tín chỉ"
+        )
+
+    # Create service and process request
+    service = LopTinChiService(current_user)
+    return service.reregister_course(registration_data)
+
+
 @router.get("/student/{masv}/registrations", response_model=List[DangKyResponse])
 async def get_student_registrations(
     masv: str = Path(..., description="Mã sinh viên"),
@@ -270,3 +304,75 @@ async def get_student_info(
     # Create service and get data
     service = LopTinChiService(current_user)
     return service.get_student_info(masv)
+
+
+@router.get("/grades", response_model=List[StudentGradeResponse])
+async def get_students_for_grading(
+    nienkhoa: str = Query(..., description="Niên khóa (format: YYYY-YYYY)"),
+    hocky: int = Query(..., description="Học kỳ (1-3)", ge=1, le=3),
+    mamh: str = Query(..., description="Mã môn học"),
+    nhom: int = Query(..., description="Nhóm", ge=1),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Get list of students for grade input.
+
+    Only PGV and KHOA roles can access this endpoint. KHOA can only access classes in their department.
+    """
+    try:
+        service = LopTinChiService(current_user)
+        return service.get_students_for_grading(nienkhoa, hocky, mamh, nhom)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error in get_students_for_grading: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi lấy danh sách sinh viên: {str(e)}"
+        )
+
+
+@router.post("/grades/update", response_model=Dict)
+async def update_student_grade(
+    grade: StudentGrade,
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Update grade for a single student.
+
+    Only PGV and KHOA roles can access this endpoint. KHOA can only update grades for classes in their department.
+    """
+    try:
+        service = LopTinChiService(current_user)
+        return service.save_student_grade(grade)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error in update_student_grade: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi cập nhật điểm: {str(e)}"
+        )
+
+
+@router.post("/grades/batch-update", response_model=Dict)
+async def update_multiple_grades(
+    update_data: MultipleGradesUpdate,
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Update grades for multiple students at once.
+
+    Only PGV and KHOA roles can access this endpoint. KHOA can only update grades for classes in their department.
+    """
+    try:
+        service = LopTinChiService(current_user)
+        return service.save_multiple_grades(update_data)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error in update_multiple_grades: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi cập nhật điểm nhiều sinh viên: {str(e)}"
+        )

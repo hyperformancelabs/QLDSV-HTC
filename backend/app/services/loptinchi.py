@@ -18,7 +18,9 @@ from app.schemas.loptinchi import (
     LopTinChiFilter,
     DangKyCreate,
     DangKyCancel,
-    StudentInfo
+    StudentInfo,
+    StudentGrade,
+    MultipleGradesUpdate
 )
 
 logger = logging.getLogger("app.services.loptinchi")
@@ -335,7 +337,7 @@ class LopTinChiService:
         Cancel a student's registration for a class section.
 
         Args:
-            data: Cancellation data with student ID and class section ID
+            data: Registration cancellation data with student ID and class section ID
 
         Returns:
             Dictionary with success message
@@ -344,40 +346,65 @@ class LopTinChiService:
             HTTPException: On database errors or validation issues
         """
         try:
-            self.repository.cancel_registration(data.masv, data.maltc)
-            return {
-                "message": f"Hủy đăng ký lớp tín chỉ {data.maltc} cho sinh viên {data.masv} thành công"
-            }
+            self.repository.cancel_registration(
+                masv=data.masv,
+                maltc=data.maltc
+            )
+            return {"message": f"Hủy đăng ký lớp tín chỉ {data.maltc} thành công"}
         except pyodbc.Error as err:
             error_msg = str(err)
             logger.error(f"Database error in cancel_registration: {error_msg}")
-
-            # Check for common errors
-            if "past semester" in error_msg.lower():
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Không thể hủy đăng ký lớp tín chỉ cho học kỳ đã qua"
-                )
-            elif "not registered" in error_msg.lower():
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Sinh viên {data.masv} chưa đăng ký lớp tín chỉ {data.maltc}"
-                )
-            elif "already canceled" in error_msg.lower():
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Đăng ký lớp tín chỉ {data.maltc} của sinh viên {data.masv} đã bị hủy trước đó"
-                )
-            elif "registration period" in error_msg.lower():
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Ngoài thời gian đăng ký"
-                )
 
             # Generic error
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Lỗi khi hủy đăng ký lớp tín chỉ: {error_msg}"
+            )
+
+    def reregister_course(self, data: DangKyCancel) -> Dict:
+        """
+        Re-register a student for a previously canceled class section.
+
+        Args:
+            data: Registration data with student ID and class section ID
+
+        Returns:
+            Dictionary with success message
+
+        Raises:
+            HTTPException: On database errors or validation issues
+        """
+        try:
+            self.repository.reregister_course(
+                masv=data.masv,
+                maltc=data.maltc
+            )
+            return {"message": f"Đăng ký lại lớp tín chỉ {data.maltc} thành công"}
+        except pyodbc.Error as err:
+            error_msg = str(err)
+            logger.error(f"Database error in reregister_course: {error_msg}")
+
+            # Check for common errors
+            if "past semester" in error_msg.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Không thể đăng ký lại lớp tín chỉ cho học kỳ đã qua"
+                )
+            elif "đã bị hủy" in error_msg:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Lớp tín chỉ đã bị hủy, không thể đăng ký"
+                )
+            elif "không tìm thấy bản ghi" in error_msg.lower():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Không tìm thấy bản ghi đăng ký đã hủy để đăng ký lại"
+                )
+
+            # Generic error
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Lỗi khi đăng ký lại lớp tín chỉ: {error_msg}"
             )
 
     def get_student_registrations(self, masv: str) -> List[Dict]:
@@ -391,7 +418,7 @@ class LopTinChiService:
             List of registration dictionaries with class section information
 
         Raises:
-            HTTPException: On database errors or if student not found
+            HTTPException: On database errors or validation issues
         """
         try:
             registrations = self.repository.list_student_registrations(masv)
@@ -443,7 +470,180 @@ class LopTinChiService:
                 detail=f"Lỗi khi lấy thông tin sinh viên: {error_msg}"
             )
 
+    def get_students_for_grading(self, nienkhoa: str, hocky: int, mamh: str, nhom: int) -> List[Dict]:
+        """
+        Get list of students registered for a class with their grades.
+
+        Args:
+            nienkhoa: Academic year
+            hocky: Semester number (1-3)
+            mamh: Subject ID
+            nhom: Group number
+
+        Returns:
+            List of students with their grades
+        """
+        try:
+            # Validate role permissions - only PGV and KHOA can view grades
+            if self.user["role"] not in ["pgv_role", "khoa_role"]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Chỉ PGV và giáo viên khoa mới có quyền xem và nhập điểm"
+                )
+
+            # Filter by khoa if user is KHOA role
+            if self.user["role"] == "khoa_role":
+                # First, get the MALTC information to check if this class belongs to the user's khoa
+                repo = LopTinChiRepository(self.user)
+                loptinchi_list = repo.list_loptinchi(
+                    nienkhoa=nienkhoa,
+                    hocky=hocky,
+                    makhoa=self.user.get("makhoa")
+                )
+
+                class_found = False
+                for ltc in loptinchi_list:
+                    if ltc["MAMH"] == mamh and ltc["NHOM"] == nhom:
+                        class_found = True
+                        break
+
+                if not class_found:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Bạn chỉ được phép xem và nhập điểm cho các lớp thuộc khoa của mình"
+                    )
+
+            # Get students for grading
+            repo = LopTinChiRepository(self.user)
+            return repo.get_students_for_grading(nienkhoa, hocky, mamh, nhom)
+
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
+        except Exception as e:
+            logger.error(f"Error in get_students_for_grading: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Lỗi khi lấy danh sách sinh viên để nhập điểm: {str(e)}"
+            )
+
+    def save_student_grade(self, grade: StudentGrade) -> Dict:
+        """
+        Save grade for a single student.
+
+        Args:
+            grade: StudentGrade object with student ID and grades
+
+        Returns:
+            Success message
+        """
+        try:
+            # Validate role permissions - only PGV and KHOA can update grades
+            if self.user["role"] not in ["pgv_role", "khoa_role"]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Chỉ PGV và giáo viên khoa mới có quyền cập nhật điểm"
+                )
+
+            # For KHOA users, check if they have permission for this class
+            if self.user["role"] == "khoa_role":
+                repo = LopTinChiRepository(self.user)
+                # Get the credit class details first to check the department
+                cursor = repo.conn.cursor()
+                cursor.execute(
+                    "SELECT MAKHOA FROM LOPTINCHI WHERE MALTC = ?", (grade.maltc,))
+                row = cursor.fetchone()
+                cursor.close()
+
+                if not row or row[0] != self.user.get("makhoa"):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Bạn chỉ được phép cập nhật điểm cho lớp thuộc khoa của mình"
+                    )
+
+            # Save the grade
+            repo = LopTinChiRepository(self.user)
+            repo.save_student_grade(
+                grade.maltc,
+                grade.masv,
+                grade.diem_cc,
+                grade.diem_gk,
+                grade.diem_ck
+            )
+
+            return {"message": "Cập nhật điểm thành công"}
+
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
+        except Exception as e:
+            logger.error(f"Error in save_student_grade: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Lỗi khi lưu điểm sinh viên: {str(e)}"
+            )
+
+    def save_multiple_grades(self, update_data: MultipleGradesUpdate) -> Dict:
+        """
+        Save grades for multiple students at once.
+
+        Args:
+            update_data: MultipleGradesUpdate object with class ID and list of student grades
+
+        Returns:
+            Success message
+        """
+        try:
+            # Validate role permissions - only PGV and KHOA can update grades
+            if self.user["role"] not in ["pgv_role", "khoa_role"]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Chỉ PGV và giáo viên khoa mới có quyền cập nhật điểm"
+                )
+
+            # For KHOA users, check if they have permission for this class
+            if self.user["role"] == "khoa_role":
+                repo = LopTinChiRepository(self.user)
+                # Get the credit class details first to check the department
+                cursor = repo.conn.cursor()
+                cursor.execute(
+                    "SELECT MAKHOA FROM LOPTINCHI WHERE MALTC = ?", (update_data.maltc,))
+                row = cursor.fetchone()
+                cursor.close()
+
+                if not row or row[0] != self.user.get("makhoa"):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Bạn chỉ được phép cập nhật điểm cho lớp thuộc khoa của mình"
+                    )
+
+            # Prepare grades list for the repository method
+            grades = []
+            for grade in update_data.grades:
+                grades.append({
+                    'masv': grade.masv,
+                    'diem_cc': grade.diem_cc,
+                    'diem_gk': grade.diem_gk,
+                    'diem_ck': grade.diem_ck
+                })
+
+            # Save the grades
+            repo = LopTinChiRepository(self.user)
+            repo.save_multiple_grades(update_data.maltc, grades)
+
+            return {"message": f"Đã cập nhật điểm cho {len(grades)} sinh viên thành công"}
+
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
+        except Exception as e:
+            logger.error(f"Error in save_multiple_grades: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Lỗi khi lưu điểm nhiều sinh viên: {str(e)}"
+            )
+
     def __del__(self):
-        """Clean up resources."""
+        """Clean up resources when the object is deleted."""
         if hasattr(self, 'repository'):
             self.repository.close_connection()

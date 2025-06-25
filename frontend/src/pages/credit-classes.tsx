@@ -467,8 +467,8 @@ export default function CreditClassesPage() {
               </Select>
             </div>
             
-            <div className="flex items-end">
-              <div className="flex items-center space-x-2">
+            <div className="flex flex-col justify-end">
+              <div className="flex items-center space-x-2 mb-2">
                 <input
                   type="checkbox"
                   id="only_available"
@@ -480,6 +480,19 @@ export default function CreditClassesPage() {
                   Chỉ hiển thị lớp chưa hủy
                 </label>
               </div>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setFilters({
+                    nienkhoa: currentAcademicYear,
+                    hocky: currentSemester,
+                    only_available: filters.only_available,
+                    makhoa: filters.makhoa
+                  });
+                }}
+              >
+                Kỳ hiện tại
+              </Button>
             </div>
           </div>
         </CardContent>

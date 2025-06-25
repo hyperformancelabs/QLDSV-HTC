@@ -6,7 +6,9 @@ import {
   DangKy, 
   DangKyCreate, 
   DangKyCancel,
-  StudentInfo
+  StudentInfo,
+  StudentGradeResponse,
+  StudentGrade
 } from '@/types';
 
 const BASE_URL = `${API_BASE_URL}/loptinchi`;
@@ -189,6 +191,128 @@ export async function getStudentInfo(masv: string): Promise<StudentInfo> {
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.detail || 'Không thể lấy thông tin sinh viên');
+  }
+  
+  return response.json();
+}
+
+/**
+ * Re-register a student for a previously canceled class registration
+ */
+export async function reregisterCourse(data: DangKyCancel): Promise<{ message: string }> {
+  const response = await fetch(`${BASE_URL}/reregister`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+    credentials: 'include',
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Không thể đăng ký lại lớp tín chỉ');
+  }
+  
+  return response.json();
+}
+
+/**
+ * Get students for grading based on filter criteria
+ */
+export async function getStudentsForGrading(
+  nienkhoa: string,
+  hocky: number,
+  mamh: string,
+  nhom: number
+): Promise<StudentGradeResponse[]> {
+  const params = new URLSearchParams({
+    nienkhoa,
+    hocky: hocky.toString(),
+    mamh,
+    nhom: nhom.toString(),
+  });
+  
+  const response = await fetch(`${BASE_URL}/grades?${params.toString()}`, {
+    method: 'GET',
+    credentials: 'include',
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Không thể lấy danh sách sinh viên để nhập điểm');
+  }
+  
+  return response.json();
+}
+
+/**
+ * Save grade for a single student
+ */
+export async function saveStudentGrade(gradeData: StudentGrade): Promise<{ message: string }> {
+  const response = await fetch(`${BASE_URL}/grades/update`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(gradeData),
+    credentials: 'include',
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Không thể cập nhật điểm sinh viên');
+  }
+  
+  return response.json();
+}
+
+/**
+ * Save grades for multiple students at once
+ */
+export async function saveMultipleGrades(
+  maltc: number, 
+  grades: StudentGrade[]
+): Promise<{ message: string }> {
+  // Xử lý dữ liệu trước khi gửi lên server
+  const processedGrades = grades.map(grade => {
+    // Tạo đối tượng mới chỉ với MASV và MALTC
+    const processedGrade: any = {
+      MASV: grade.MASV,
+      MALTC: grade.MALTC
+    };
+    
+    // Chỉ thêm các trường điểm nếu chúng tồn tại
+    if (grade.DIEM_CC !== undefined) {
+      processedGrade.DIEM_CC = grade.DIEM_CC === null || grade.DIEM_CC === '' ? null : Number(grade.DIEM_CC);
+    }
+    
+    if (grade.DIEM_GK !== undefined) {
+      processedGrade.DIEM_GK = grade.DIEM_GK === null || grade.DIEM_GK === '' ? null : Number(grade.DIEM_GK);
+    }
+    
+    if (grade.DIEM_CK !== undefined) {
+      processedGrade.DIEM_CK = grade.DIEM_CK === null || grade.DIEM_CK === '' ? null : Number(grade.DIEM_CK);
+    }
+    
+    return processedGrade;
+  });
+
+  const response = await fetch(`${BASE_URL}/grades/batch-update`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      MALTC: maltc,
+      grades: processedGrades
+    }),
+    credentials: 'include',
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Không thể cập nhật điểm nhiều sinh viên');
   }
   
   return response.json();

@@ -76,16 +76,22 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
       roles: [UserRole.SV],
     },
     {
-      title: 'Điểm',
-      href: '/grades',
+      title: 'Quản lý điểm',
+      href: '/grades/manage',
       icon: <FileText className="h-5 w-5" />,
-      roles: [UserRole.PGV, UserRole.KHOA, UserRole.SV],
+      roles: [UserRole.PGV, UserRole.KHOA],
+    },
+    {
+      title: 'Xem điểm',
+      href: '/grades/view',
+      icon: <FileText className="h-5 w-5" />,
+      roles: [UserRole.SV],
     },
     {
       title: 'Học phí & Phục vụ',
       href: '/tuition',
       icon: <DollarSign className="h-5 w-5" />,
-      roles: [UserRole.PGV, UserRole.SV],
+      roles: [UserRole.PGV],
     },
     {
       title: 'Báo cáo',
@@ -97,7 +103,7 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
       title: 'Cài đặt',
       href: '/settings',
       icon: <Settings className="h-5 w-5" />,
-      roles: [UserRole.PGV, UserRole.KHOA, UserRole.SV],
+      roles: [UserRole.PGV, UserRole.KHOA],
     },
   ];
 

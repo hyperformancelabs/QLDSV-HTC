@@ -9,6 +9,8 @@ import ClassManagementPage from '@/pages/class-management';
 import LecturerAccounts from './pages/lecturer-accounts';
 import CreditClassesPage from './pages/credit-classes';
 import StudentRegistrationsPage from './pages/student-registrations';
+import StudentGradesPage from './pages/student-grades';
+import PGVGradeManagementPage from './pages/pgv-grade-management';
 
 // Demo placeholder page component for routes still under development
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -55,8 +57,10 @@ function App() {
           {/* Registration management - implemented */}
           <Route path="/registrations" element={<StudentRegistrationsPage />} />
           
-          {/* Grade management */}
-          <Route path="/grades" element={<PlaceholderPage title="Quản lý điểm" />} />
+          {/* Grade management - separated for PGV and SV */}
+          <Route path="/grades" element={<Navigate to="/grades/manage" replace />} />
+          <Route path="/grades/manage" element={<PGVGradeManagementPage />} />
+          <Route path="/grades/view" element={<StudentGradesPage />} />
           
           {/* Tuition management */}
           <Route path="/tuition" element={<PlaceholderPage title="Quản lý học phí" />} />

@@ -132,3 +132,69 @@ class StudentInfo(BaseModel):
         """Pydantic config."""
         orm_mode = True
         allow_population_by_field_name = True
+
+
+class GradeFilters(BaseModel):
+    """Schema for filtering students for grading."""
+    nienkhoa: str = Field(...,
+                          description="Niên khóa (format: YYYY-YYYY)", alias="NIENKHOA")
+    hocky: int = Field(..., description="Học kỳ (1-3)",
+                       ge=1, le=3, alias="HOCKY")
+    mamh: str = Field(..., description="Mã môn học", alias="MAMH")
+    nhom: int = Field(..., description="Nhóm", ge=1, alias="NHOM")
+
+    class Config:
+        """Pydantic config."""
+        allow_population_by_field_name = True
+        populate_by_name = True
+
+
+class StudentGradeResponse(BaseModel):
+    """Schema for student grade data."""
+    masv: str = Field(..., description="Mã sinh viên", alias="MASV")
+    ho: str = Field(..., description="Họ", alias="HO")
+    ten: str = Field(..., description="Tên", alias="TEN")
+    diem_cc: Optional[int] = Field(
+        None, description="Điểm chuyên cần", alias="DIEM_CC", ge=0, le=10)
+    diem_gk: Optional[float] = Field(
+        None, description="Điểm giữa kỳ", alias="DIEM_GK", ge=0, le=10)
+    diem_ck: Optional[float] = Field(
+        None, description="Điểm cuối kỳ", alias="DIEM_CK", ge=0, le=10)
+    diem_het_mon: Optional[float] = Field(
+        None, description="Điểm hết môn", alias="DIEM_HET_MON")
+    maltc: int = Field(..., description="Mã lớp tín chỉ", alias="MALTC")
+
+    class Config:
+        """Pydantic config."""
+        orm_mode = True
+        allow_population_by_field_name = True
+        populate_by_name = True
+
+
+class StudentGrade(BaseModel):
+    """Schema for single student grade update."""
+    masv: str = Field(..., description="Mã sinh viên", alias="MASV")
+    maltc: int = Field(..., description="Mã lớp tín chỉ", alias="MALTC")
+    diem_cc: Optional[int] = Field(
+        None, description="Điểm chuyên cần", alias="DIEM_CC", ge=0, le=10)
+    diem_gk: Optional[float] = Field(
+        None, description="Điểm giữa kỳ", alias="DIEM_GK", ge=0, le=10)
+    diem_ck: Optional[float] = Field(
+        None, description="Điểm cuối kỳ", alias="DIEM_CK", ge=0, le=10)
+
+    class Config:
+        """Pydantic config."""
+        allow_population_by_field_name = True
+        populate_by_name = True
+
+
+class MultipleGradesUpdate(BaseModel):
+    """Schema for updating multiple student grades."""
+    maltc: int = Field(..., description="Mã lớp tín chỉ", alias="MALTC")
+    grades: List[StudentGrade] = Field(...,
+                                       description="Danh sách điểm sinh viên")
+
+    class Config:
+        """Pydantic config."""
+        allow_population_by_field_name = True
+        populate_by_name = True

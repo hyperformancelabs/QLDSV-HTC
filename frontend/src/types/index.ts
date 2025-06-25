@@ -255,4 +255,24 @@ export interface FilterOption {
 
 export interface FilterParams {
   [key: string]: string | number | boolean | undefined;
+}
+
+// Grade management types
+export interface StudentGradeResponse {
+  MASV: string;
+  HO: string;
+  TEN: string;
+  DIEM_CC: number | null;
+  DIEM_GK: number | null;
+  DIEM_CK: number | null;
+  DIEM_HET_MON: number | null;
+  MALTC: number;
+}
+
+export interface StudentGrade {
+  MASV: string;
+  MALTC: number;
+  DIEM_CC?: number | null;
+  DIEM_GK?: number | null;
+  DIEM_CK?: number | null;
 } 
